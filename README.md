@@ -92,6 +92,14 @@ A group chat has its own memory. What you tell the group stays in the group: its
 
 ![Group chat: the admin, Chief, hands the work to Writer and Coder](docs/images/group.png)
 
+### Needs your attention
+
+The sidebar gathers pending approvals, questions and failed Bot runs. Select an item to open its conversation. Approvals and questions disappear when answered. A failed run remains until you choose **Mark as handled**; opening the conversation does not clear it.
+
+### Sidebar groups
+
+Organize Bots and group chats into named sidebar groups. Select **New sidebar group**, then right-click a Bot or group chat and choose where to move it. Drag a group by its handle to reorder it within its pinned or unpinned tier. Each group's menu lets you rename, pin, reorder or delete it; select its name to collapse or expand it. Deleting a sidebar group moves its chats to Ungrouped; it does not delete them or change group-chat membership.
+
 ### Capabilities
 
 Settings → **Capabilities** is a shared library of MCP servers, skills and packs. Add a capability to a Bot in its settings; it is available from that Bot's next message in its own chat and group chats. A local MCP command that a Bot adds needs your approval before it can run. While other Bots use a capability, only you or a Main Bot can change or delete it.

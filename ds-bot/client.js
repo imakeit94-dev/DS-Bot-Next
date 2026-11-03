@@ -44,6 +44,11 @@ var NAMESPACE = "ds-bot";
 var ZH = {
   // Shared
   "Main Bot": "主 Bot",
+  "Needs your attention": "需要你处理",
+  "Run failed": "运行失败",
+  "Mark as handled": "已处理",
+  "Mark failure in {name} as handled": "将 {name} 的失败标记为已处理",
+  "Nothing needs your attention": "目前没有需要你处理的事项",
   Working: "工作中",
   "Waiting for your answer": "等你回答",
   "Waiting for {names}": "等 {names} 交回",
@@ -94,6 +99,22 @@ var ZH = {
   "Open {name}'s chat": "打开 {name} 的对话",
   "New Bot": "新 Bot",
   // Sidebar and account menu
+  "New sidebar group": "新建工作组",
+  "Drag to reorder": "拖动调整顺序",
+  "Drag to reorder {name}": "拖动调整 {name} 的顺序",
+  "Sidebar group name": "工作组名称",
+  Ungrouped: "未分组",
+  "Move to Ungrouped": "移至未分组",
+  "Move to {name}": "移至 {name}",
+  "Pin group": "置顶工作组",
+  "Unpin group": "取消置顶工作组",
+  "Move group up": "工作组上移",
+  "Move group down": "工作组下移",
+  "Rename sidebar group": "重命名工作组",
+  "Delete sidebar group": "删除工作组",
+  "Chats will move to Ungrouped.": "聊天将移至未分组。",
+  "Confirm delete": "确认删除",
+  "{bots} Bots · {rooms} group chats": "{bots} 个 Bot · {rooms} 个群聊",
   "Bot list": "Bot 列表",
   "Setting up your Main Bot…": "正在设置你的主 Bot…",
   "The Bot team could not start. The engine’s startup output — its console, or the app’s startup error box — has the cause.": "Bot 团队启动失败。原因在引擎的启动输出里——它的控制台，或应用的启动错误框。",
@@ -1663,6 +1684,8 @@ function teamActions({ call: call2, after, partFor, roster, ui: ui2, live, cards
     },
     quote: (sessionId, text) => ui2.set((state) => ({ ...state, quote: { sessionId, text, token: Date.now() } })),
     clearQuote: (token) => ui2.set((state) => state.quote?.token === token ? { ...state, quote: null } : state),
+    sidebarGroup: (body) => after(call2("sidebar-group", body)),
+    clearAttentionFailure: (id) => after(call2("attention-failure-clear", { id })),
     setFlags: (id, flags) => after(call2("set-flags", { id, ...flags })),
     deleteRoom: (id) => after(call2("delete-room", { id })),
     openMenu: (menu) => {
@@ -9199,6 +9222,30 @@ function installFrameWatch(frame) {
   };
 }
 
+// src/client/attention-list.js
+function attentionItems(roster, approvals, interactions) {
+  const items = [];
+  for (const approval of approvals ?? []) {
+    const bot = roster.byId[approval.botId];
+    const room2 = approval.roomId && roster.roomsById[approval.roomId];
+    if (approval.roomId ? !room2 : !bot) continue;
+    items.push({ key: `approval:${approval.id}`, target: room2?.id ?? bot.id, name: room2?.name ?? bot.name, kind: "approval", bot: room2 ? bot?.name : void 0 });
+  }
+  for (const bot of roster.bots ?? []) {
+    const part = bot.sessionId ?? bot.id;
+    if (roster.questions?.[part] || interactions[part] === "question") {
+      items.push({ key: `question:${part}`, target: bot.id, name: bot.name, kind: "question" });
+    }
+  }
+  for (const failure of roster.attentionFailures ?? []) {
+    const room2 = roster.roomsById[failure.targetId];
+    const bot = roster.byId[failure.targetId];
+    if (!room2 && !bot) continue;
+    items.push({ key: `failure:${failure.id}`, id: failure.id, target: failure.targetId, name: room2?.name ?? bot.name, kind: "failure", bot: room2 ? roster.byId[failure.botId]?.name : void 0 });
+  }
+  return items;
+}
+
 // src/client/sidebar.js
 var import_react18 = require("react");
 var import_react_dom3 = require("react-dom");
@@ -9521,11 +9568,151 @@ var bootHint = () => {
   const last = clientErrors().at(-1)?.text;
   return last === void 0 ? t("The Bot team could not start. The engine’s startup output — its console, or the app’s startup error box — has the cause.") : t("The Bot team could not start. {error}. The engine’s startup output — its console, or the app’s startup error box — has the cause.", { error: last });
 };
+function SidebarGroup({ group, entries: entries2, renderEntry, actions, useSessionStatus, useWork, markedUnread, questions, dragGroup, setDragGroup, dropTarget, setDropTarget }) {
+  const [editing, setEditing] = (0, import_react18.useState)(false);
+  const [name, setName] = (0, import_react18.useState)(group.name);
+  const [confirmDelete, setConfirmDelete] = (0, import_react18.useState)(false);
+  const options = (0, import_react18.useRef)(null);
+  (0, import_react18.useEffect)(() => {
+    const close = (event) => {
+      if (options.current && !options.current.contains(event.target)) {
+        options.current.open = false;
+        setConfirmDelete(false);
+      }
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, []);
+  const unread = useSessionStatus((map) => entries2.some(({ item, kind }) => {
+    const id = kind === "bot" ? currentPart(item) : item.id;
+    const status = map.get(id);
+    return markedUnread[item.id] === true || questions[id] !== void 0 || status?.completionUnread === true || status?.pendingInteraction !== void 0;
+  }));
+  const approval = useWork((work) => (work.approvals ?? []).some((item) => entries2.some((entry) => entry.item.id === item.botId || entry.item.id === item.roomId)));
+  const act = (body) => {
+    void actions.sidebarGroup({ groupId: group.id, ...body }).catch((error) => actions.reportError(error, "sidebar-group"));
+  };
+  const bots = entries2.filter((entry) => entry.kind === "bot").length;
+  const rooms = entries2.filter((entry) => entry.kind === "room").length;
+  const canDrop = dragGroup && dragGroup.id !== group.id && dragGroup.pinned === !!group.pinned;
+  return (0, import_react18.createElement)(
+    "section",
+    {
+      className: "bt-sidebar-group",
+      "aria-label": group.name,
+      "data-drop": dropTarget?.id === group.id ? dropTarget.position : void 0,
+      "data-dragging": dragGroup?.id === group.id || void 0,
+      onDragOver: (event) => {
+        if (!canDrop) {
+          setDropTarget(null);
+          return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        const rect = event.currentTarget.getBoundingClientRect();
+        const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+        setDropTarget((current) => current?.id === group.id && current.position === position ? current : { id: group.id, position });
+      },
+      onDragLeave: (event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setDropTarget((current) => current?.id === group.id ? null : current);
+      },
+      onDrop: (event) => {
+        if (!canDrop) return;
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+        void actions.sidebarGroup({ action: "move-relative", groupId: dragGroup.id, targetId: group.id, position }).catch((error) => actions.reportError(error, "sidebar-group"));
+        setDropTarget(null);
+        setDragGroup(null);
+      }
+    },
+    (0, import_react18.createElement)(
+      "div",
+      { className: "bt-sidebar-group-head" },
+      (0, import_react18.createElement)("button", {
+        type: "button",
+        className: "bt-sidebar-group-grip",
+        draggable: true,
+        "aria-label": t("Drag to reorder {name}", { name: group.name }),
+        title: t("Drag to reorder"),
+        onDragStart: (event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", "sidebar-group");
+          setDragGroup({ id: group.id, pinned: !!group.pinned });
+        },
+        onDragEnd: () => {
+          setDragGroup(null);
+          setDropTarget(null);
+        }
+      }, (0, import_react18.createElement)("svg", { viewBox: "0 0 16 16", "aria-hidden": true }, [4, 8, 12].map((y) => [6, 10].map((x) => (0, import_react18.createElement)("circle", { key: `${x}-${y}`, cx: x, cy: y, r: 1, fill: "currentColor" }))))),
+      (0, import_react18.createElement)(
+        "button",
+        { type: "button", className: "bt-sidebar-group-toggle", "aria-expanded": !group.collapsed, onClick: () => act({ action: "collapse", value: !group.collapsed }) },
+        (0, import_react18.createElement)("span", { "aria-hidden": true }, group.collapsed ? "▸" : "▾"),
+        (0, import_react18.createElement)("strong", null, group.name),
+        group.pinned ? (0, import_react18.createElement)(PinMark) : null,
+        unread || approval ? (0, import_react18.createElement)("span", { className: "bt-unread", title: t(approval ? "Waiting for your approval" : "Unread activity") }) : null
+      ),
+      (0, import_react18.createElement)(
+        "details",
+        { ref: options, className: "bt-sidebar-group-options" },
+        (0, import_react18.createElement)("summary", { "aria-label": t("{name} actions", { name: group.name }) }, "···"),
+        (0, import_react18.createElement)(
+          "div",
+          { className: "bt-sidebar-group-menu" },
+          (0, import_react18.createElement)("button", { type: "button", onClick: () => {
+            options.current.open = false;
+            act({ action: "pin", value: !group.pinned });
+          } }, t(group.pinned ? "Unpin group" : "Pin group")),
+          (0, import_react18.createElement)("button", { type: "button", onClick: () => {
+            options.current.open = false;
+            act({ action: "reorder", direction: -1 });
+          } }, t("Move group up")),
+          (0, import_react18.createElement)("button", { type: "button", onClick: () => {
+            options.current.open = false;
+            act({ action: "reorder", direction: 1 });
+          } }, t("Move group down")),
+          (0, import_react18.createElement)("button", { type: "button", onClick: () => {
+            options.current.open = false;
+            setName(group.name);
+            setEditing(true);
+          } }, t("Rename sidebar group")),
+          confirmDelete ? (0, import_react18.createElement)(import_react18.Fragment, null, (0, import_react18.createElement)("span", null, t("Chats will move to Ungrouped.")), (0, import_react18.createElement)("button", { type: "button", onClick: () => act({ action: "delete" }) }, t("Confirm delete")), (0, import_react18.createElement)("button", { type: "button", onClick: () => setConfirmDelete(false) }, t("Cancel"))) : (0, import_react18.createElement)("button", { type: "button", onClick: () => setConfirmDelete(true) }, t("Delete sidebar group"))
+        )
+      )
+    ),
+    editing ? (0, import_react18.createElement)(
+      "form",
+      { className: "bt-sidebar-group-form", onSubmit: (event) => {
+        event.preventDefault();
+        if (!name.trim()) return;
+        act({ action: "rename", name });
+        setEditing(false);
+      } },
+      (0, import_react18.createElement)("input", { value: name, maxLength: 80, "aria-label": t("Sidebar group name"), onChange: (event) => setName(event.target.value), autoFocus: true }),
+      (0, import_react18.createElement)("button", { type: "submit" }, t("Save")),
+      (0, import_react18.createElement)("button", { type: "button", onClick: () => setEditing(false) }, t("Cancel"))
+    ) : null,
+    group.collapsed ? (0, import_react18.createElement)("div", { className: "bt-sidebar-group-count" }, t("{bots} Bots · {rooms} group chats", { bots, rooms })) : (0, import_react18.createElement)("div", { className: "bt-sidebar-group-entries" }, entries2.map(renderEntry))
+  );
+}
 function TeamSidebar(props) {
   const { wide, useRoster, useUi, useSessions, actions } = props;
   const listRef = (0, import_react18.useRef)(null);
+  const [addingGroup, setAddingGroup] = (0, import_react18.useState)(false);
+  const [attentionOpen, setAttentionOpen] = (0, import_react18.useState)(false);
+  const [newGroupName, setNewGroupName] = (0, import_react18.useState)("");
+  const [ungroupedOpen, setUngroupedOpen] = (0, import_react18.useState)(true);
+  const [dragGroup, setDragGroup] = (0, import_react18.useState)(null);
+  const [dropTarget, setDropTarget] = (0, import_react18.useState)(null);
   const roster = useRoster((value) => value);
   const markedUnread = useUi((value) => value.unread);
+  const approvalsText = props.useWork ? props.useWork((work) => JSON.stringify(work.approvals ?? [])) : "[]";
+  const interactionsText = props.useSessionStatus ? props.useSessionStatus((map) => JSON.stringify(Object.fromEntries(roster.bots.map((bot) => {
+    const id = currentPart(bot);
+    return [id, map.get(id)?.pendingInteraction?.kind];
+  })))) : "{}";
+  const attention = attentionItems(roster, JSON.parse(approvalsText), JSON.parse(interactionsText));
   const uiNow = useUi((value) => value);
   props.useRegistry((value) => value);
   const frameSnap = props.useFrame ? props.useFrame((value) => value) : { viewport: typeof window === "undefined" ? 0 : window.innerWidth, sidebarWidth: FALLBACK_SIDEBAR_WIDTH, collapsedWidth: 0 };
@@ -9556,6 +9743,8 @@ function TeamSidebar(props) {
     return entries2.sort((a, b) => Number(Boolean(b.item.pinned)) - Number(Boolean(a.item.pinned)) || b.at - a.at);
   }, [roster, updated]);
   const main = roster.byId[roster.mainBotId];
+  const sidebarGroups = roster.prefs?.sidebarGroups ?? [];
+  const assigned = new Set(sidebarGroups.flatMap((group) => group.members));
   useListGlide(listRef, wideContent, order.map((entry) => entry.item.id).join(","));
   useLandOnMainBot(roster, useSessions, actions);
   const openWidth = drag?.width ?? frameSnap.sidebarWidth;
@@ -9681,6 +9870,18 @@ function TeamSidebar(props) {
     newAgentSession: (id) => navigate(actions.newAgentSession, id)
   };
   const rowProps = { roster, actions: rowActions, useSessions, useUi, useSessionStatus: props.useSessionStatus, useSessionRetainInfo: props.useSessionRetainInfo, useActivity: props.useActivity, useWork: props.useWork, wide: wideContent };
+  const renderEntry = (entry) => entry.kind === "bot" ? (0, import_react18.createElement)(BotRow, { key: entry.item.id, ...rowProps, bot: entry.item, marked: markedUnread[entry.item.id] === true }) : entry.kind === "room" ? (0, import_react18.createElement)(RoomRow, { key: entry.item.id, ...rowProps, room: entry.item, marked: markedUnread[entry.item.id] === true }) : (0, import_react18.createElement)(AgentRow, { key: entry.item.id, ...rowProps, agent: entry.item, marked: markedUnread[entry.item.id] === true });
+  const allEntries = main ? [{ kind: "bot", item: main }, ...order] : order;
+  const orderedGroups = [...sidebarGroups].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
+  const ungrouped = allEntries.filter((entry) => !assigned.has(entry.item.id));
+  const addGroup = (event) => {
+    event.preventDefault();
+    if (!newGroupName.trim()) return;
+    void actions.sidebarGroup({ action: "create", name: newGroupName }).then(() => {
+      setNewGroupName("");
+      setAddingGroup(false);
+    }).catch((error) => actions.reportError(error, "sidebar-group"));
+  };
   const typeToSearch = (event) => {
     if (event.defaultPrevented || event.key.length !== 1 || event.key === " " || event.metaKey || event.ctrlKey || event.altKey || event.nativeEvent.isComposing) return;
     if (event.target instanceof Element && event.target.closest("input,textarea,[contenteditable]")) return;
@@ -9728,12 +9929,43 @@ function TeamSidebar(props) {
     "div",
     { className: wideContent ? "bt-side" : "bt-side bt-rail", onKeyDown: typeToSearch },
     top,
+    wideContent ? (0, import_react18.createElement)(
+      "div",
+      { className: "bt-attention" },
+      (0, import_react18.createElement)(
+        "button",
+        { type: "button", className: "bt-sidebar-group-toggle", "aria-expanded": attentionOpen, onClick: () => setAttentionOpen(!attentionOpen) },
+        (0, import_react18.createElement)("span", { "aria-hidden": true }, attentionOpen ? "▾" : "▸"),
+        (0, import_react18.createElement)("strong", null, t("Needs your attention")),
+        (0, import_react18.createElement)("span", { className: "bt-attention-count" }, attention.length)
+      ),
+      attentionOpen ? (0, import_react18.createElement)("div", { className: "bt-attention-list" }, attention.length === 0 ? (0, import_react18.createElement)("div", { className: "bt-attention-empty" }, t("Nothing needs your attention")) : attention.map((item) => (0, import_react18.createElement)(
+        "div",
+        { className: "bt-attention-row", key: item.key },
+        (0, import_react18.createElement)(
+          "button",
+          { type: "button", className: "bt-attention-item", onClick: () => rowActions.openSession(item.target) },
+          (0, import_react18.createElement)("span", { className: "bt-attention-name" }, item.name),
+          (0, import_react18.createElement)("span", { className: "bt-attention-kind" }, t(item.kind === "approval" ? "Waiting for your approval" : item.kind === "question" ? "Waiting for your answer" : "Run failed"), item.bot ? ` · ${item.bot}` : "")
+        ),
+        item.kind === "failure" ? (0, import_react18.createElement)("button", { type: "button", className: "bt-attention-clear", "aria-label": t("Mark failure in {name} as handled", { name: item.name }), title: t("Mark as handled"), onClick: () => {
+          void actions.clearAttentionFailure(item.id).catch((error) => actions.reportError(error, "attention-failure"));
+        } }, t("Mark as handled")) : null
+      ))) : null
+    ) : null,
     wideContent && roster.readOnly ? (0, import_react18.createElement)("div", { className: "bt-hint bt-read-only", role: "status" }, hostText(roster.readOnly)) : null,
     (0, import_react18.createElement)(
       "div",
       { ref: listRef, className: "bt-list", role: "region", "aria-label": t("Bot list") },
-      wideContent ? main ? (0, import_react18.createElement)(BotRow, { ...rowProps, bot: main, marked: markedUnread[main.id] === true }) : roster.ready ? null : (0, import_react18.createElement)("div", { className: "bt-hint" }, uiNow.bootFailed ? bootHint() : t("Setting up your Main Bot…")) : null,
-      order.map((entry) => entry.kind === "bot" ? (0, import_react18.createElement)(BotRow, { key: entry.item.id, ...rowProps, bot: entry.item, marked: markedUnread[entry.item.id] === true }) : entry.kind === "room" ? (0, import_react18.createElement)(RoomRow, { key: entry.item.id, ...rowProps, room: entry.item, marked: markedUnread[entry.item.id] === true }) : (0, import_react18.createElement)(AgentRow, { key: entry.item.id, ...rowProps, agent: entry.item, marked: markedUnread[entry.item.id] === true }))
+      wideContent && !main && !roster.ready ? (0, import_react18.createElement)("div", { className: "bt-hint" }, uiNow.bootFailed ? bootHint() : t("Setting up your Main Bot…")) : null,
+      !wideContent ? order.map(renderEntry) : sidebarGroups.length === 0 ? allEntries.map(renderEntry) : (0, import_react18.createElement)(
+        import_react18.Fragment,
+        null,
+        orderedGroups.map((group) => (0, import_react18.createElement)(SidebarGroup, { key: group.id, group, entries: allEntries.filter((entry) => group.members.includes(entry.item.id)), renderEntry, actions, useSessionStatus: props.useSessionStatus, useWork: props.useWork, markedUnread, questions: roster.questions ?? {}, dragGroup, setDragGroup, dropTarget, setDropTarget })),
+        (0, import_react18.createElement)("button", { type: "button", className: "bt-sidebar-group-toggle bt-ungrouped", "aria-expanded": ungroupedOpen, onClick: () => setUngroupedOpen(!ungroupedOpen) }, (0, import_react18.createElement)("span", { "aria-hidden": true }, ungroupedOpen ? "▾" : "▸"), t("Ungrouped")),
+        ungroupedOpen ? ungrouped.map(renderEntry) : null
+      ),
+      wideContent ? addingGroup ? (0, import_react18.createElement)("form", { className: "bt-sidebar-group-form", onSubmit: addGroup }, (0, import_react18.createElement)("input", { value: newGroupName, maxLength: 80, "aria-label": t("Sidebar group name"), autoFocus: true, onChange: (event) => setNewGroupName(event.target.value) }), (0, import_react18.createElement)("button", { type: "submit" }, t("Create")), (0, import_react18.createElement)("button", { type: "button", onClick: () => setAddingGroup(false) }, t("Cancel"))) : (0, import_react18.createElement)("button", { type: "button", className: "bt-sidebar-group-add", onClick: () => setAddingGroup(true) }, (0, import_react18.createElement)(PlusIcon), t("New sidebar group")) : null
     ),
     foot
   );
@@ -10132,6 +10364,45 @@ function BrandName() {
   return (0, import_react18.createElement)("span", { style: { fontWeight: 600, fontSize: 14 } }, "DS Bot");
 }
 var SIDEBAR_CSS = `
+.bt-attention{flex:none;margin:2px 6px 6px;border-bottom:1px solid var(--bt-line)}
+.bt-attention-count{margin-left:auto;color:var(--bt-ink-2);font-size:12px}
+.bt-attention-list{max-height:180px;overflow:auto;padding:0 4px 6px}
+.bt-attention-row{display:flex;align-items:center;min-width:0}
+.bt-attention-clear{flex:none;padding:5px;border:0;border-radius:6px;background:none;color:var(--bt-ink-2);font:inherit;font-size:12px;cursor:pointer}
+.bt-attention-clear:hover{background:var(--bt-hover);color:var(--bt-ink)}
+.bt-attention-item{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px;width:100%;padding:7px 8px;border:0;border-radius:6px;background:none;color:var(--bt-ink);font:inherit;text-align:left;cursor:pointer}
+.bt-attention-item:hover{background:var(--bt-hover)}
+.bt-attention-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.bt-attention-kind,.bt-attention-empty{color:var(--bt-ink-2);font-size:12px}
+.bt-attention-empty{padding:7px 8px}
+.bt-sidebar-group{position:relative;margin:4px 2px;padding:4px;border-radius:10px;background:var(--bt-hover)}
+.bt-sidebar-group[data-dragging]{opacity:.5}
+.bt-sidebar-group[data-drop]::after{content:'';position:absolute;left:6px;right:6px;height:3px;border-radius:999px;background:var(--bt-accent);pointer-events:none;z-index:2}
+.bt-sidebar-group[data-drop=before]::after{top:-4px}
+.bt-sidebar-group[data-drop=after]::after{bottom:-4px}
+.bt-sidebar-group-grip{display:flex;align-items:center;justify-content:center;width:24px;height:30px;flex:none;padding:0;border:0;border-radius:6px;background:none;color:var(--bt-ink-2);cursor:grab;touch-action:none}
+.bt-sidebar-group-grip:active{cursor:grabbing}
+.bt-sidebar-group-grip:hover{background:var(--bt-active);color:var(--bt-ink)}
+.bt-sidebar-group-grip:focus-visible{outline:2px solid var(--bt-accent);outline-offset:1px}
+.bt-sidebar-group-grip svg{width:16px;height:16px}
+.bt-sidebar-group-head{display:flex;align-items:center;gap:4px}
+.bt-sidebar-group-toggle{display:flex;align-items:center;gap:8px;min-width:0;flex:1;border:0;background:none;color:var(--bt-ink);font:inherit;text-align:left;padding:8px;cursor:pointer}
+.bt-sidebar-group-toggle strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.bt-sidebar-group-options{position:relative;flex:none}
+.bt-sidebar-group-options summary{cursor:pointer;list-style:none;padding:4px 8px;border-radius:6px;color:var(--bt-ink-2)}
+.bt-sidebar-group-options summary:hover{background:var(--bt-active)}
+.bt-sidebar-group-options summary::-webkit-details-marker{display:none}
+.bt-sidebar-group-menu{position:absolute;right:0;top:100%;z-index:45;min-width:170px;padding:6px;display:flex;flex-direction:column;background:var(--bt-main);border:1px solid var(--bt-line-2);border-radius:10px;box-shadow:0 8px 20px -4px rgba(0,0,0,.18)}
+.bt-sidebar-group-menu button{border:0;background:none;text-align:left;color:var(--bt-ink);font:inherit;font-size:12px;padding:7px;border-radius:6px;cursor:pointer}
+.bt-sidebar-group-menu button:hover{background:var(--bt-hover)}
+.bt-sidebar-group-menu span,.bt-sidebar-group-count{font-size:12px;color:var(--bt-ink-2);padding:4px 8px}
+.bt-sidebar-group-form{display:flex;gap:4px;padding:5px;min-width:0}
+.bt-sidebar-group-form input{min-width:0;flex:1;border:1px solid var(--bt-line-2);border-radius:6px;background:var(--bt-main);color:var(--bt-ink);padding:5px;font:inherit}
+.bt-sidebar-group-form button{border:0;border-radius:6px;background:var(--bt-active);color:var(--bt-ink);font:inherit;font-size:12px;cursor:pointer}
+.bt-sidebar-group-add{display:flex;align-items:center;gap:6px;margin:8px 4px;padding:6px;border:0;background:none;color:var(--bt-ink-2);font:inherit;font-size:12px;cursor:pointer}
+.bt-sidebar-group-add svg{width:16px;height:16px}
+.bt-ungrouped{flex:none;margin-top:8px;color:var(--bt-ink-2);font-size:12px}
+
 .bt-confirm{width:260px;max-width:72vw;padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px}
 .bt-confirm-text{margin:0;font-size:13px;line-height:19px;color:var(--bt-ink-2)}
 .bt-confirm-error{margin:0;font-size:12px;line-height:17px;color:var(--bt-danger);overflow-wrap:anywhere}
@@ -17109,7 +17380,13 @@ function ContextMenu({ menu, roster, actions, leaving = false }) {
   const isMainBot = isMainOf(roster, menu.id);
   const isTile = roster.mainBotId === menu.id;
   const mainCount = (roster.mainBotIds ?? []).length;
+  const sidebarGroups = roster.prefs?.sidebarGroups ?? [];
+  const currentGroup = sidebarGroups.find((group) => group.members.includes(menu.id));
   const groups = [
+    ...sidebarGroups.length ? [[
+      ...sidebarGroups.filter((group) => group.id !== currentGroup?.id).map((group) => [t("Move to {name}", { name: group.name }), GearIcon, () => actions.sidebarGroup({ action: "move-entry", entryId: menu.id, groupId: group.id })]),
+      currentGroup ? [t("Move to Ungrouped"), GearIcon, () => actions.sidebarGroup({ action: "move-entry", entryId: menu.id, groupId: null })] : null
+    ]] : [],
     [
       isTile ? null : [entry.pinned ? t("Unpin") : t("Pin"), PinIcon, () => actions.setFlags(menu.id, { pinned: !entry.pinned })],
       [t("Mark as Unread"), UnreadIcon, () => actions.markUnread(menu.id)]

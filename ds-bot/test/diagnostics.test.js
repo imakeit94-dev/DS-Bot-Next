@@ -234,6 +234,23 @@ function turnsHost() {
 
 const failed = { kind: 'error', error: { code: 'SERVER', message: 'upstream busy', status: 503 } }
 
+test('failed turn records the owning Bot or group, without clearing it on a later success', () => {
+  const { rt, emit } = turnsHost()
+  rt.state.bots = rt.bots
+  rt.state.rooms = { room: { id: 'room', name: 'Team' } }
+  rt.chatOwners.set('b', 'b')
+  emit('b', 'turn/start', { turn: 1 })
+  emit('b', 'turn/end', { turn: 1, reason: failed })
+  assert.equal(rt.state.attentionFailures[0].targetId, 'b')
+  emit('b', 'turn/start', { turn: 2 })
+  emit('b', 'turn/end', { turn: 2, reason: { kind: 'completed' } })
+  assert.equal(rt.state.attentionFailures.length, 1)
+  rt.groupOwners.set('group-b', { roomId: 'room', botId: 'b' })
+  emit('group-b', 'turn/start', { turn: 3 })
+  emit('group-b', 'turn/end', { turn: 3, reason: failed })
+  assert.deepEqual(rt.state.attentionFailures.map(item => [item.targetId, item.botId]), [['b', undefined], ['room', 'b']])
+})
+
 test('a failed reply to message_bot tells the sender instead of leaving it waiting', () => {
   const { emit, delivered, noted } = turnsHost()
   emit('b', 'turn/start', { turn: 1 })

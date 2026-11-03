@@ -1,5 +1,7 @@
 // Client channel: the team view the browser renders, and the POST /api/bot endpoints.
 import { randomUUID } from 'node:crypto'
+import { changeSidebarGroups } from './sidebar-groups.js'
+import { clearAttentionFailure } from './attention-failures.js'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { install as installBtw } from './btw.js'
 import { install as installSide } from './side.js'
@@ -56,6 +58,7 @@ export function install(rt) {
     privateArchives: rt.archivesView(),
     exchangeTurns: state.exchangeTurns,
     questions: state.questions,
+    attentionFailures: (Array.isArray(state.attentionFailures) ? state.attentionFailures : []).filter(item => state.bots[item.targetId] || state.rooms[item.targetId]),
     views: state.views ?? {},
     // Aside answers of each Bot's current part, newest first. Not part of the
     // model-visible history; earlier parts send their cards on their own pages.
@@ -335,6 +338,15 @@ export function install(rt) {
         case 'remove-agent':
           await rt.load()
           await rt.removeAgent(body.agentId)
+          return ok(view())
+        case 'attention-failure-clear':
+          await rt.load()
+          if (clearAttentionFailure(state, body.id)) await rt.save()
+          return ok(null)
+        case 'sidebar-group':
+          await rt.load()
+          changeSidebarGroups(state, body)
+          await rt.save()
           return ok(view())
         case 'set-flags':
           await rt.load()
