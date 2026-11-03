@@ -829,7 +829,7 @@ test('a change out of the working folder that is not allowed changes nothing', a
   assert.equal(state().bots.b.workDir, undefined)
 })
 
-test('in a group with a folder of its own a member stays inside it; without one the member\'s own folder changes', async (t) => {
+test('in a group with a folder of its own a member stays inside it; without one only that conversation changes', async (t) => {
   const { service } = folderService()
   const { services } = approvalServices('allowed-once')
   const { ctx, call, agentOf, team, project, state, stop } = await start({ services: { ...services, workingDirectory: service } })
@@ -845,7 +845,8 @@ test('in a group with a folder of its own a member stays inside it; without one 
   assert.equal((await call('update-room', { id: 'r1', workDir: '' })).ok, true)
   const own = await changeDirectory(ctx, service, agentOf('gb'), project)
   assert.equal(own.ran, true)
-  assert.equal(state().bots.b.workDir, project)
+  assert.equal(state().rooms.r1.memberDirs.b, project)
+  assert.equal(state().bots.b.workDir, undefined)
   assert.equal(state().rooms.r1.workDir, undefined)
 })
 
@@ -905,4 +906,194 @@ test('a Bot changes back to the team workspace when the team workspace is known 
   assert.equal(back.ran, true)
   assert.equal(state().bots.b.workDir, undefined)
   assert.equal(requests.length, 0)
+})
+
+// #710: the group's own Session only relays and has no fresh part to move to; it
+// follows the team workspace in place, so a moved and deleted workspace no longer
+// fails every round.
+test("a group chat's own Session follows the team workspace it was made in", async (t) => {
+  const { sets, service } = folderService()
+  const { ctx, root, call, agentOf, team, stop } = await start({ services: { workingDirectory: service } })
+  t.after(stop)
+  const moved = join(root, 'moved')
+  assert.deepEqual((await call('team-workspace', { path: moved })).value, { team: moved })
+  rmSync(team, { recursive: true, force: true })
+  assert.equal(await assemble(ctx, agentOf('r1')), true)
+  assert.deepEqual(sets, [['r1', moved]])
+  // Already in the current team workspace: nothing changes.
+  assert.equal(await assemble(ctx, agentOf('r1')), true)
+  assert.deepEqual(sets, [['r1', moved]])
+})
+
+// #710: the group's own Session sits in the team workspace; when that folder itself is
+// deleted it is made again, as for any other Session.
+test("a group chat's own Session makes a deleted team workspace again", async (t) => {
+  const { sets, service } = folderService()
+  const { ctx, agentOf, team, stop } = await start({ services: { workingDirectory: service } })
+  t.after(stop)
+  rmSync(team, { recursive: true, force: true })
+  assert.equal(await assemble(ctx, agentOf('r1')), true)
+  assert.equal(existsSync(team), true)
+  assert.deepEqual(sets, [])
+})
+
+// #710: a member whose group's folder went away works on in the team workspace, and
+// the group is told once, not on every round.
+test('a group whose folder is gone works on in the team workspace and is told once', async (t) => {
+  const { sets, service } = folderService()
+  const { ctx, call, agentOf, team, project, state, stop } = await start({ services: { workingDirectory: service } })
+  t.after(stop)
+  assert.equal((await call('update-room', { id: 'r1', workDir: project })).ok, true)
+  agentOf('gb').session.header.cwd = project
+  rmSync(project, { recursive: true, force: true })
+  assert.equal(await assemble(ctx, agentOf('gb')), true)
+  assert.deepEqual(sets, [['gb', team]])
+  const notice = () => (state().rooms.r1.log ?? []).filter(line => line.kind === 'notice' && line.reason === 'folder')
+  assert.equal(notice().length, 1)
+  assert.equal(notice()[0].path, project)
+  assert.equal(await assemble(ctx, agentOf('gb')), true)
+  assert.equal(notice().length, 1)
+  // Clearing or setting the folder clears the mark.
+  assert.equal((await call('update-room', { id: 'r1', workDir: '' })).ok, true)
+  assert.equal(state().rooms.r1.folderNotice, undefined)
+})
+
+// #710: a member still in the team workspace when the group's folder went away needs
+// no correction, but the group is still told once.
+test("a member that never reached the group's folder still brings the one-time notice", async (t) => {
+  const { sets, service } = folderService()
+  const { ctx, call, agentOf, project, state, stop } = await start({ services: { workingDirectory: service } })
+  t.after(stop)
+  assert.equal((await call('update-room', { id: 'r1', workDir: project })).ok, true)
+  rmSync(project, { recursive: true, force: true })
+  // 'gb' was made in the team workspace and never moved to the group's folder.
+  assert.equal(await assemble(ctx, agentOf('gb')), true)
+  assert.deepEqual(sets, [])
+  const notice = () => (state().rooms.r1.log ?? []).filter(line => line.kind === 'notice' && line.reason === 'folder')
+  assert.equal(notice().length, 1)
+  assert.equal(notice()[0].path, project)
+  assert.equal(await assemble(ctx, agentOf('gb')), true)
+  assert.equal(notice().length, 1)
+})
+
+// #710: a Session made for a folder that is registered as a workspace joins it, so it
+// does not stay ungrouped.
+test('a Bot whose working folder is a registered workspace joins it', async (t) => {
+  const { ctx, call, project, state, created, stop } = await start()
+  t.after(stop)
+  await ctx.workspaceRegistry.create(project)
+  assert.equal((await call('update-bot', { id: 'b', workDir: project })).ok, true)
+  await until(() => state().bots.b.sessionId === 's1')
+  assert.deepEqual(created.at(-1), { workspaceId: 'w-new' })
+})
+
+// #710: a notice past the limit is refused, not silently cut.
+test('a group notice past the limit is refused, not cut', async (t) => {
+  const { call, tool, state, stop } = await start()
+  t.after(stop)
+  const long = 'x'.repeat(2001)
+  assert.match((await call('update-room', { id: 'r1', notice: long })).error?.message, /at most 2000 characters/)
+  assert.match(await tool('update_group', { group: 'r1', notice: long }, 'a'), /at most 2000 characters/)
+  assert.match(await tool('create_group', { members: ['Writer'], notice: long }, 'a'), /at most 2000 characters/)
+  assert.equal(state().rooms.r1.notice ?? '', '')
+})
+
+// A folder a member picks inside a group is kept on the room, per member: it holds
+// for that conversation's next parts, and nowhere else.
+const TWO_ROOMS = {
+  ...TEAM.rooms,
+  r2: { id: 'r2', name: 'Cuda', members: ['a', 'b'], mode: 'admin', admin: 'a', named: true, sessions: { b: 'gb2' } },
+}
+
+test('a folder a member picks in one group holds only there, not in its other groups or its own chat', async (t) => {
+  const { service } = folderService()
+  const { requests, services } = approvalServices('allowed-once')
+  const { ctx, call, agentOf, created, root, state, preStep, stop } = await start({ services: { ...services, workingDirectory: service }, team: { ...TEAM, rooms: TWO_ROOMS } })
+  t.after(stop)
+  const own = join(root, 'cuda')
+  const ascend = join(root, 'ascend')
+  mkdirSync(own)
+  mkdirSync(ascend)
+  assert.equal((await call('update-bot', { id: 'b', workDir: own })).ok, true)
+  await until(() => state().bots.b.sessionId === 's1')
+  // The member's group Sessions were made in its own folder.
+  agentOf('gb').session.header.cwd = own
+  agentOf('gb2').session.header.cwd = own
+
+  const moved = await changeDirectory(ctx, service, agentOf('gb'), ascend)
+  assert.equal(moved.ran, true)
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0].toolName, 'working_directory')
+  assert.equal(state().rooms.r1.memberDirs.b, ascend)
+  // Neither the Bot's folder, its conversation in the other group, nor its own chat moved.
+  assert.equal(state().bots.b.workDir, own)
+  assert.equal(state().rooms.r1.workDir, undefined)
+  assert.equal(await preStep('gb2'), 'next')
+  assert.equal(await preStep('s1'), 'next')
+  assert.deepEqual(created.map(options => options.cwd).filter(Boolean), [own])
+
+  // Its conversation in this group moves on to a fresh part in the new folder.
+  assert.deepEqual(await preStep('gb'), { kind: 'reject' })
+  await until(() => state().rooms.r1.sessions.b === 's2')
+  assert.deepEqual(created.at(-1), { cwd: ascend })
+  assert.equal(state().rooms.r2.sessions.b, 'gb2')
+  assert.equal(state().bots.b.sessionId, 's1')
+})
+
+test('a member that changes to the team workspace in a group stays there, not back in its own folder', async (t) => {
+  const { service } = folderService()
+  const { services } = approvalServices('allowed-once')
+  const { ctx, call, agentOf, created, root, team, state, preStep, stop } = await start({ services: { ...services, workingDirectory: service } })
+  t.after(stop)
+  const own = join(root, 'cuda')
+  mkdirSync(own)
+  assert.equal((await call('update-bot', { id: 'b', workDir: own })).ok, true)
+  await until(() => state().bots.b.sessionId === 's1')
+  agentOf('gb').session.header.cwd = own
+
+  const moved = await changeDirectory(ctx, service, agentOf('gb'), team)
+  assert.equal(moved.ran, true)
+  assert.equal(state().rooms.r1.memberDirs.b, null)
+  assert.equal(state().bots.b.workDir, own)
+  assert.deepEqual(await preStep('gb'), { kind: 'reject' })
+  await until(() => state().rooms.r1.sessions.b === 's2')
+  assert.deepEqual(created.at(-1), { workspaceId: 'w1' })
+})
+
+test('a member\'s folder pick in a group goes with the group\'s folder setting or the member', async (t) => {
+  const { service } = folderService()
+  const { services } = approvalServices('allowed-once')
+  const three = {
+    ...TEAM,
+    bots: { ...TEAM.bots, c: { id: 'c', name: 'Tester', role: 'Test', sessionId: 'c', createdAt: 3 } },
+    rooms: { r1: { ...TEAM.rooms.r1, members: ['a', 'b', 'c'] } },
+  }
+  const { ctx, call, agentOf, project, state, stop } = await start({ services: { ...services, workingDirectory: service }, team: three })
+  t.after(stop)
+  assert.equal((await changeDirectory(ctx, service, agentOf('gb'), project)).ran, true)
+  assert.equal(state().rooms.r1.memberDirs.b, project)
+  // Setting the group's folder overrides every pick, and clearing it does not bring one back.
+  assert.equal((await call('update-room', { id: 'r1', workDir: project })).ok, true)
+  assert.equal(state().rooms.r1.memberDirs, undefined)
+  assert.equal((await call('update-room', { id: 'r1', workDir: '' })).ok, true)
+  assert.equal((await changeDirectory(ctx, service, agentOf('gb'), project)).ran, true)
+  assert.equal(state().rooms.r1.memberDirs.b, project)
+  assert.equal((await call('update-room', { id: 'r1', remove: ['b'] })).ok, true)
+  assert.equal(state().rooms.r1.memberDirs?.b, undefined)
+})
+
+test('a member cannot pick the folder of a private Bot inside a group', async (t) => {
+  const { service } = folderService()
+  const { services } = approvalServices('allowed-once')
+  const three = {
+    ...TEAM,
+    bots: { ...TEAM.bots, c: { id: 'c', name: 'Diary', role: 'Notes', sessionId: 'c', createdAt: 3 } },
+  }
+  const { ctx, call, agentOf, project, state, stop } = await start({ services: { ...services, workingDirectory: service }, team: three })
+  t.after(stop)
+  assert.equal((await call('update-bot', { id: 'c', private: true, workDir: project })).ok, true)
+  const moved = await changeDirectory(ctx, service, agentOf('gb'), project)
+  assert.equal(moved.ran, false)
+  assert.match(moved.error, /Diary is a private Bot/)
+  assert.equal(state().rooms.r1.memberDirs, undefined)
 })

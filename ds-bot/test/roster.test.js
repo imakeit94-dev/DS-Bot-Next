@@ -967,6 +967,23 @@ test('a photo that cannot be read changes nothing, and a non-Main Bot cannot set
   assert.equal((await call('state', {})).value.bots.find(bot => bot.id === writer.id).avatar.image, PNG_DATA_URL)
 })
 
+test('upgrading preserves a saved relay limit, counter and parked calls', async (t) => {
+  const parked = [{ id: 'writer', name: 'Writer', note: 'Chief mentioned you', by: 'chief' }]
+  const { call, stop, home } = start({
+    version: 1, mainBotIds: ['chief'],
+    bots: { chief: { id: 'chief', name: 'Chief' }, writer: { id: 'writer', name: 'Writer' } },
+    rooms: { r1: { id: 'r1', name: 'Ops', members: ['chief', 'writer'], mode: 'admin', admin: 'chief', named: true, log: [], seq: 0, seen: {}, relays: 3, relayLimit: 4, paused: parked } },
+  })
+  t.after(stop)
+  const shown = (await call('state', {})).value.rooms.find(room => room.id === 'r1')
+  assert.equal(shown.relayLimit, 4)
+  assert.deepEqual(shown.paused, parked)
+  const saved = JSON.parse(readFileSync(join(home, 'state.json'), 'utf8')).rooms.r1
+  assert.equal(saved.relayLimit, 4)
+  assert.equal(saved.relays, 3)
+  assert.deepEqual(saved.paused, parked)
+})
+
 test('a group\'s relay limit is a user setting the state view shows, and old late-round fields load away', async (t) => {
   const { call, stop, home } = start({
     version: 1,

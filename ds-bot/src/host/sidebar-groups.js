@@ -14,13 +14,14 @@ export function changeSidebarGroups(state, body) {
   if (body.action === 'create') {
     if (groups.length >= 100) throw invalid('There can be at most 100 sidebar groups')
     groups.push({ id: randomUUID(), name: name(body.name), members: [], pinned: false, collapsed: false })
-  } else if (body.action === 'move-entry') {
-    const entry = state.bots[body.entryId] ?? state.rooms[body.entryId]
-    if (!entry || !Object.hasOwn(state.bots, body.entryId) && !Object.hasOwn(state.rooms, body.entryId)) throw invalid('Chat not found')
+  } else if (body.action === 'move-entry' || body.action === 'move-entries') {
+    const ids = body.action === 'move-entry' ? [body.entryId] : body.entryIds
+    if (!Array.isArray(ids) || ids.length === 0 || ids.some(id => typeof id !== 'string' || (!Object.hasOwn(state.bots, id) && !Object.hasOwn(state.rooms, id)))) throw invalid('Chat not found')
     const target = body.groupId === null ? null : find(body.groupId)
     if (body.groupId !== null && !target) throw invalid('Sidebar group not found')
-    for (const group of groups) group.members = group.members.filter(id => id !== body.entryId)
-    if (target) target.members.push(body.entryId)
+    const selected = new Set(ids)
+    for (const group of groups) group.members = group.members.filter(id => !selected.has(id))
+    if (target) target.members.push(...selected)
   } else {
     const group = find(body.groupId)
     if (!group) throw invalid('Sidebar group not found')

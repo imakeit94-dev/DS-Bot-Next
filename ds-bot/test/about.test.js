@@ -44,7 +44,7 @@ function page(update) {
   const tree = AboutPage({ useUpdate: select => select(update), actions, run, Section: 'section', Row: 'row' })
   const find = (node, pick) => (Array.isArray(node) ? node.flatMap(one => find(one, pick))
     : node && typeof node === 'object' ? [...pick(node), ...find(node.children, pick)] : [])
-  const [row] = find(tree, node => (node.props?.label === 'DS Bot' ? [node] : []))
+  const [row] = find(tree, node => (node.props?.label === 'DS Bot Next' ? [node] : []))
   const buttons = find(row?.children ?? [], node => (node.type === 'button' ? [node] : []))
   return {
     hint: row?.props?.hint,
@@ -104,4 +104,17 @@ test('ownAppRow maps each phase to its hint and button kind', () => {
   const downloaded = ownAppRow({ phase: 'downloaded', version: '0.2.2' })
   assert.equal(downloaded.hint, '0.2.2 is ready; it installs when you restart')
   assert.equal(downloaded.button, 'restart')
+})
+
+test('about page identifies the fork and preserves original project and license links', () => {
+  const actions = new Proxy({ repoStars: async () => null }, { get: (target, name) => target[name] ?? (() => {}) })
+  const tree = AboutPage({ useUpdate: select => select({ repoUrl: 'https://github.com/imakeit94-dev/DS-Bot-Next' }), actions, run: promise => promise, Section: 'section', Row: 'row' })
+  const all = node => Array.isArray(node) ? node.flatMap(all) : node && typeof node === 'object' ? [node, ...all(node.children)] : []
+  const nodes = all(tree)
+  const links = nodes.filter(node => node.type === 'a').map(node => node.props.href)
+  assert.ok(links.includes('https://github.com/imakeit94-dev/DS-Bot-Next'))
+  assert.ok(links.includes('https://github.com/Fei2411/DS-Bot'))
+  assert.ok(links.includes('https://github.com/imakeit94-dev/DS-Bot-Next/blob/main/LICENSE'))
+  assert.ok(links.includes('https://github.com/imakeit94-dev/DS-Bot-Next/blob/main/NOTICE'))
+  assert.ok(nodes.some(node => node.props?.hint === 'DS Bot by Fei2411 and contributors · Apache License 2.0'))
 })

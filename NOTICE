@@ -133,3 +133,11 @@ their ideas; it does not contain their code.
     (packages/experimental/client-ui-voice-input), MIT: the voice chat
     records with the same steps (record, resample to 16 kHz mono, PCM16 WAV)
     before it calls the plugin's speech service.
+
+==============================================================================
+DS Bot Next modifications
+==============================================================================
+
+DS Bot Next is an independently maintained fork of DS Bot. Its changes include
+sidebar workgroups, attention and deliverables views, and fork-specific project
+and feedback links. The original copyright and third-party notices above remain.

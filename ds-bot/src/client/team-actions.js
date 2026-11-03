@@ -81,6 +81,7 @@ export function teamActions({ call, after, partFor, roster, ui, live, cards, hel
     quote: (sessionId, text) => ui.set(state => ({ ...state, quote: { sessionId, text, token: Date.now() } })),
     clearQuote: token => ui.set(state => (state.quote?.token === token ? { ...state, quote: null } : state)),
     sidebarGroup: body => after(call('sidebar-group', body)),
+    listDeliverables: groupId => call('deliverables', { groupId }),
     clearAttentionFailure: id => after(call('attention-failure-clear', { id })),
     setFlags: (id, flags) => after(call('set-flags', { id, ...flags })),
     deleteRoom: id => after(call('delete-room', { id })),

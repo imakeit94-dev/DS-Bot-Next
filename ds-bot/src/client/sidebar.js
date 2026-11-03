@@ -2,7 +2,7 @@ import { createElement as h, Fragment, useEffect, useLayoutEffect, useMemo, useR
 import { createPortal } from 'react-dom'
 import { FishLogo } from './dsh-primitives.js'
 import { isMainOf } from './sources.js'
-import { currentPart, previewOf, relativeShort } from './text.js'
+import { currentPart, previewOf, relativeShort, clockLabel } from './text.js'
 import { PlusIcon, SearchIcon, SidebarIcon, GaugeIcon, ClockIcon, GearIcon, PinMarkIcon, ConnectorIcon, SwitchIcon, CloudDownloadIcon, SignOutIcon } from './icons.js'
 import { MAIN_LOOK } from './characters.js'
 import { botState, BotMark, BotAvatar, RoomAvatar } from './mark.js'
@@ -15,6 +15,7 @@ import { showsDshRow } from './dsh-offer.js'
 import { frameLayout, dragColumn, RAIL_WIDTH, FALLBACK_SIDEBAR_WIDTH, userSidebarToggle } from './frame-layout.js'
 import { chatRoom, dshCollapsed } from './frame-watch.js'
 import { attentionItems } from './attention-list.js'
+import { sidebarGroupStatus } from './sidebar-group-status.js'
 
 // -------------------------------------------------------------------------
 // Sidebar
@@ -299,23 +300,29 @@ const bootHint = () => {
     : t('The Bot team could not start. {error}. The engine’s startup output — its console, or the app’s startup error box — has the cause.', { error: last })
 }
 
-function SidebarGroup({ group, entries, renderEntry, actions, useSessionStatus, useWork, markedUnread, questions, dragGroup, setDragGroup, dropTarget, setDropTarget }) {
+function SidebarGroup({ group, entries, allEntries, groups, renderEntry, actions, useSessionStatus, useWork, markedUnread, questions, failures, dragGroup, setDragGroup, dropTarget, setDropTarget }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(group.name)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState([])
+  const [moving, setMoving] = useState(false)
   const options = useRef(null)
   useEffect(() => {
     const close = event => { if (options.current && !options.current.contains(event.target)) { options.current.open = false; setConfirmDelete(false) } }
     document.addEventListener('pointerdown', close)
     return () => document.removeEventListener('pointerdown', close)
   }, [])
-  const unread = useSessionStatus(map => entries.some(({ item, kind }) => {
+  const statusesText = useSessionStatus(map => JSON.stringify(Object.fromEntries(entries.map(({ item, kind }) => {
     const id = kind === 'bot' ? currentPart(item) : item.id
     const status = map.get(id)
-    return markedUnread[item.id] === true || questions[id] !== undefined || status?.completionUnread === true || status?.pendingInteraction !== undefined
-  }))
-  const approval = useWork(work => (work.approvals ?? []).some(item => entries.some(entry => entry.item.id === item.botId || entry.item.id === item.roomId)))
+    return [id, { running: status?.running, completionUnread: status?.completionUnread, pendingInteraction: status?.pendingInteraction?.kind }]
+  }))))
+  const workText = useWork(work => JSON.stringify({ approvals: work.approvals, rooms: work.rooms, bots: work.bots }))
+  const status = sidebarGroupStatus(entries, JSON.parse(statusesText), JSON.parse(workText), markedUnread, questions, failures)
+  const statusLabels = [status.attention ? t('Needs your attention') : '', status.unread ? t('Unread activity') : '', status.working ? t('Working') : ''].filter(Boolean)
   const act = body => { void actions.sidebarGroup({ groupId: group.id, ...body }).catch(error => actions.reportError(error, 'sidebar-group')) }
+  const candidates = allEntries.filter(entry => entry.kind !== 'agent' && !entry.item.hidden && !group.members.includes(entry.item.id))
   const bots = entries.filter(entry => entry.kind === 'bot').length
   const rooms = entries.filter(entry => entry.kind === 'room').length
   const canDrop = dragGroup && dragGroup.id !== group.id && dragGroup.pinned === !!group.pinned
@@ -349,12 +356,13 @@ function SidebarGroup({ group, entries, renderEntry, actions, useSessionStatus, 
         onDragStart: event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', 'sidebar-group'); setDragGroup({ id: group.id, pinned: !!group.pinned }) },
         onDragEnd: () => { setDragGroup(null); setDropTarget(null) },
       }, h('svg', { viewBox: '0 0 16 16', 'aria-hidden': true }, [4, 8, 12].map(y => [6, 10].map(x => h('circle', { key: `${x}-${y}`, cx: x, cy: y, r: 1, fill: 'currentColor' }))))),
-      h('button', { type: 'button', className: 'bt-sidebar-group-toggle', 'aria-expanded': !group.collapsed, onClick: () => act({ action: 'collapse', value: !group.collapsed }) },
+      h('button', { type: 'button', className: 'bt-sidebar-group-toggle', 'aria-expanded': !group.collapsed, 'aria-label': [group.name, ...statusLabels].join(', '), onClick: () => act({ action: 'collapse', value: !group.collapsed }) },
         h('span', { 'aria-hidden': true }, group.collapsed ? '▸' : '▾'), h('strong', null, group.name), group.pinned ? h(PinMark) : null,
-        unread || approval ? h('span', { className: 'bt-unread', title: t(approval ? 'Waiting for your approval' : 'Unread activity') }) : null),
+        h('span', { className: 'bt-sidebar-group-status', 'aria-hidden': true }, status.attention ? h('span', { className: 'bt-group-status bt-group-attention', title: t('Needs your attention') }, t('Action needed')) : null, status.unread ? h('span', { className: 'bt-group-status bt-group-unread', title: t('Unread activity') }, t('Unread')) : null, status.working ? h('span', { className: 'bt-group-status bt-group-working', title: t('Working') }, t('Working')) : null)),
       h('details', { ref: options, className: 'bt-sidebar-group-options' },
         h('summary', { 'aria-label': t('{name} actions', { name: group.name }) }, '···'),
         h('div', { className: 'bt-sidebar-group-menu' },
+          h('button', { type: 'button', onClick: () => { options.current.open = false; setSelected([]); setSelecting(true) } }, t('Move chats here…')),
           h('button', { type: 'button', onClick: () => { options.current.open = false; act({ action: 'pin', value: !group.pinned }) } }, t(group.pinned ? 'Unpin group' : 'Pin group')),
           h('button', { type: 'button', onClick: () => { options.current.open = false; act({ action: 'reorder', direction: -1 }) } }, t('Move group up')),
           h('button', { type: 'button', onClick: () => { options.current.open = false; act({ action: 'reorder', direction: 1 }) } }, t('Move group down')),
@@ -362,11 +370,54 @@ function SidebarGroup({ group, entries, renderEntry, actions, useSessionStatus, 
           confirmDelete
             ? h(Fragment, null, h('span', null, t('Chats will move to Ungrouped.')), h('button', { type: 'button', onClick: () => act({ action: 'delete' }) }, t('Confirm delete')), h('button', { type: 'button', onClick: () => setConfirmDelete(false) }, t('Cancel')))
             : h('button', { type: 'button', onClick: () => setConfirmDelete(true) }, t('Delete sidebar group'))))),
+    selecting ? h('form', { className: 'bt-group-picker', onSubmit: event => {
+      event.preventDefault()
+      if (!selected.length || moving) return
+      setMoving(true)
+      void actions.sidebarGroup({ action: 'move-entries', groupId: group.id, entryIds: selected }).then(() => { setSelecting(false); setSelected([]) }).catch(error => actions.reportError(error, 'sidebar-group')).finally(() => setMoving(false))
+    } },
+    h('div', { className: 'bt-group-picker-title' }, t('Choose chats to move')),
+    h('div', { className: 'bt-group-picker-list' }, candidates.length === 0 ? h('p', { className: 'bt-group-picker-empty' }, t('No other chats to move.')) : candidates.map(({ item, kind }) => {
+      const source = groups.find(other => other.members.includes(item.id))
+      return h('label', { className: 'bt-group-picker-option', key: item.id },
+        h('input', { type: 'checkbox', checked: selected.includes(item.id), disabled: moving, onChange: event => setSelected(current => event.target.checked ? [...current, item.id] : current.filter(id => id !== item.id)) }),
+        h('span', { className: 'bt-group-picker-name' }, item.name), h('span', { className: 'bt-group-picker-kind' }, t(kind === 'bot' ? 'Bot' : 'Group chat'), source ? ` · ${source.name}` : ''))
+    })),
+    h('div', { className: 'bt-group-picker-actions' }, h('button', { type: 'submit', disabled: selected.length === 0 || moving }, t('Move selected ({count})', { count: selected.length })), h('button', { type: 'button', disabled: moving, onClick: () => setSelecting(false) }, t('Cancel')))) : null,
     editing ? h('form', { className: 'bt-sidebar-group-form', onSubmit: event => { event.preventDefault(); if (!name.trim()) return; act({ action: 'rename', name }); setEditing(false) } },
       h('input', { value: name, maxLength: 80, 'aria-label': t('Sidebar group name'), onChange: event => setName(event.target.value), autoFocus: true }),
       h('button', { type: 'submit' }, t('Save')), h('button', { type: 'button', onClick: () => setEditing(false) }, t('Cancel'))) : null,
     group.collapsed ? h('div', { className: 'bt-sidebar-group-count' }, t('{bots} Bots · {rooms} group chats', { bots, rooms }))
       : h('div', { className: 'bt-sidebar-group-entries' }, entries.map(renderEntry)))
+}
+
+function DeliverablesList({ groups, actions }) {
+  const [open, setOpen] = useState(false)
+  const [groupId, setGroupId] = useState('')
+  const [refresh, setRefresh] = useState(0)
+  const [result, setResult] = useState({ loading: false, items: [] })
+  useEffect(() => {
+    if (!open) return undefined
+    let active = true
+    setResult({ loading: true, items: [] })
+    void actions.listDeliverables(groupId || null).then(value => { if (active) setResult({ ...value, loading: false }) }).catch(() => { if (active) setResult({ loading: false, items: [], error: true }) })
+    return () => { active = false }
+  }, [open, groupId, refresh])
+  useEffect(() => { if (groupId && !groups.some(group => group.id === groupId)) setGroupId('') }, [groups, groupId])
+  return h('div', { className: 'bt-deliverables' },
+    h('button', { type: 'button', className: 'bt-sidebar-group-toggle', 'aria-expanded': open, onClick: () => setOpen(!open) }, h('span', { 'aria-hidden': true }, open ? '▾' : '▸'), h('strong', null, t('Deliverables'))),
+    open ? h('div', { className: 'bt-deliverables-panel' },
+      h('div', { className: 'bt-deliverables-controls' }, h('select', { value: groupId, 'aria-label': t('Filter by sidebar group'), onChange: event => setGroupId(event.target.value) },
+        h('option', { value: '' }, t('All conversations')), groups.map(group => h('option', { key: group.id, value: group.id }, group.name))),
+      h('button', { type: 'button', onClick: () => setRefresh(value => value + 1), disabled: result.loading }, t('Refresh deliverables'))),
+      result.loading ? h('p', { className: 'bt-deliverables-note', role: 'status' }, t('Loading deliverables…'))
+        : result.error ? h('p', { className: 'bt-deliverables-note', role: 'alert' }, t('Could not load deliverables. Try refreshing.'))
+          : h(Fragment, null,
+            result.unavailable ? h('p', { className: 'bt-deliverables-note', role: 'status' }, t('Some conversations could not be read.')) : null,
+            result.truncated ? h('p', { className: 'bt-deliverables-note' }, t('Showing the latest 200 files.')) : null,
+            result.items.length === 0 && !result.unavailable ? h('p', { className: 'bt-deliverables-note' }, t('No delivered files yet.')) : null,
+            h('div', { className: 'bt-deliverables-list' }, result.items.map(item => h('button', { type: 'button', className: 'bt-deliverables-item', key: item.id, onClick: () => actions.openSession(item.targetId) },
+              h('span', { className: 'bt-deliverables-name' }, item.name), h('span', { className: 'bt-deliverables-meta' }, item.sourceName, typeof item.time === 'number' ? ` · ${clockLabel(item.time)}` : '')))))) : null)
 }
 
 export function TeamSidebar(props) {
@@ -430,31 +481,96 @@ export function TeamSidebar(props) {
   useEffect(() => () => { if (typeof document !== 'undefined') chatRoom.setLeft(null) }, [])
 
   // The edge drag: live while the pointer moves, the column's new state on release.
+  // Per frame the drag writes the column's own inline style and each conversation
+  // column's inline margin — the same path the panel's resize takes — so nothing
+  // re-renders or restyles the chat while the pointer moves. A render only happens
+  // when the drag crosses the rail's snap line, and the spring (`data-folding`)
+  // rides that switch alone: it comes off when the switch settles, so a drag that
+  // keeps going afterwards follows the cursor frame by frame again.
+  const settleTimer = useRef(0)
+  const springTimer = useRef(0)
   const startDrag = (event) => {
     if (event.button !== 0) return
     event.preventDefault()
+    clearTimeout(settleTimer.current)
+    clearTimeout(springTimer.current)
     const grip = event.currentTarget
+    const column = grip.parentElement
+    // A re-grab can land while a previous spring still stands: the new drag owns
+    // the column from here, so its fold state starts clean.
+    delete column.dataset.folding
     grip.setPointerCapture?.(event.pointerId)
     chatRoom.hold(true)
+    const columns = chatRoom.columns()
+    for (const col of columns) col.style.setProperty('transition', 'none', 'important')
+    const offLeft = frameSnap.collapsedWidth ?? 0
     let last = null
+    let liveLeft = mode
     let done = false
-    const onMove = (move) => { last = dragColumn(move.clientX, window.innerWidth); setDrag(last) }
+    const write = (at) => {
+      const width = at.left === 'rail' ? RAIL_WIDTH : at.width
+      column.style.width = `${width}px`
+      column.style.setProperty('--bt-lc-w', `${width}px`)
+      const push = Math.max(0, (at.left === 'open' ? width : RAIL_WIDTH) - offLeft)
+      for (const col of columns) col.style.setProperty('margin-left', `${push}px`, 'important')
+    }
+    // A snap crossing arms the spring for the switch's glide; the timer takes it
+    // back off once the switch has had its duration.
+    let springUntil = 0
+    const springOff = () => {
+      springUntil = 0
+      delete column.dataset.folding
+      for (const col of columns) col.style.setProperty('transition', 'none', 'important')
+    }
+    const springOn = () => {
+      column.dataset.folding = ''
+      for (const col of columns) col.style.setProperty('transition', `margin-left ${SPRING_SHAPE.duration}ms ${SPRING_SHAPE.easing}`, 'important')
+      springUntil = performance.now() + SPRING_SHAPE.duration
+      clearTimeout(springTimer.current)
+      springTimer.current = setTimeout(springOff, SPRING_SHAPE.duration)
+    }
+    const track = (x) => {
+      last = dragColumn(x, window.innerWidth)
+      if (last.left !== liveLeft) {
+        liveLeft = last.left
+        if (!reducedMotion()) springOn()
+        setDrag(last)
+      }
+      write(last)
+    }
+    const onMove = (move) => track(move.clientX)
+    // The rules and props take the landed geometry back over; while the fold's
+    // spring still runs this waits it out so the landing does not snap. The
+    // inline `width` stays: it is the landed geometry, and React writes its width
+    // prop only when the value changes, so removing it would leave the edge at
+    // its CSS fallback (57px on the rail).
+    const finish = () => {
+      clearTimeout(springTimer.current)
+      if (column.isConnected && last !== null) chatRoom.setLeft(Math.max(0, (last.left === 'open' ? last.width : RAIL_WIDTH) - offLeft))
+      for (const col of columns) { col.style.removeProperty('margin-left'); col.style.removeProperty('transition') }
+      column.style.removeProperty('--bt-lc-w')
+      delete column.dataset.folding
+      chatRoom.hold(false)
+    }
     const ends = ['pointerup', 'pointercancel', 'lostpointercapture']
     const onEnd = (end) => {
       if (done) return
       done = true
-      if (end.type === 'pointerup') last = dragColumn(end.clientX, window.innerWidth)
+      if (end.type === 'pointerup') track(end.clientX)
       grip.removeEventListener('pointermove', onMove)
       for (const name of ends) grip.removeEventListener(name, onEnd)
       setDrag(null)
-      chatRoom.hold(false)
-      if (last === null) return
+      if (last === null) { finish(); return }
       // The drag is the latest explicit gesture: it takes back a yielded panel's room.
       actions.setPanelYield?.(false)
-      if (last.left === 'rail') { actions.setLeftDrawer?.(false); actions.setSidebarPref?.('rail'); return }
-      actions.setSidebarWidth?.(last.width)
-      actions.setSidebarPref?.('open')
-      actions.setLeftDrawer?.(last.left === 'drawer')
+      if (last.left === 'rail') { actions.setLeftDrawer?.(false); actions.setSidebarPref?.('rail') }
+      else {
+        actions.setSidebarWidth?.(last.width)
+        actions.setSidebarPref?.('open')
+        actions.setLeftDrawer?.(last.left === 'drawer')
+      }
+      if (springUntil === 0) finish()
+      else settleTimer.current = setTimeout(finish, Math.max(0, springUntil - performance.now()) + 60)
     }
     grip.addEventListener('pointermove', onMove)
     for (const name of ends) grip.addEventListener(name, onEnd)
@@ -608,18 +724,19 @@ export function TeamSidebar(props) {
         h('button', { type: 'button', className: 'bt-attention-item', onClick: () => rowActions.openSession(item.target) },
           h('span', { className: 'bt-attention-name' }, item.name), h('span', { className: 'bt-attention-kind' }, t(item.kind === 'approval' ? 'Waiting for your approval' : item.kind === 'question' ? 'Waiting for your answer' : 'Run failed'), item.bot ? ` · ${item.bot}` : '')),
         item.kind === 'failure' ? h('button', { type: 'button', className: 'bt-attention-clear', 'aria-label': t('Mark failure in {name} as handled', { name: item.name }), title: t('Mark as handled'), onClick: () => { void actions.clearAttentionFailure(item.id).catch(error => actions.reportError(error, 'attention-failure')) } }, t('Mark as handled')) : null))) : null) : null,
+    wideContent ? h(DeliverablesList, { groups: sidebarGroups, actions: rowActions }) : null,
     wideContent && roster.readOnly ? h('div', { className: 'bt-hint bt-read-only', role: 'status' }, hostText(roster.readOnly)) : null,
+    wideContent ? (addingGroup
+      ? h('form', { className: 'bt-sidebar-group-form', onSubmit: addGroup }, h('input', { value: newGroupName, maxLength: 80, 'aria-label': t('Sidebar group name'), autoFocus: true, onChange: event => setNewGroupName(event.target.value) }), h('button', { type: 'submit' }, t('Create')), h('button', { type: 'button', onClick: () => setAddingGroup(false) }, t('Cancel')))
+      : h('button', { type: 'button', className: 'bt-sidebar-group-add', onClick: () => setAddingGroup(true) }, h(PlusIcon), t('New sidebar group'))) : null,
     h('div', { ref: listRef, className: 'bt-list', role: 'region', 'aria-label': t('Bot list') },
       wideContent && !main && !roster.ready ? h('div', { className: 'bt-hint' }, uiNow.bootFailed ? bootHint() : t('Setting up your Main Bot…')) : null,
       !wideContent ? order.map(renderEntry) : sidebarGroups.length === 0
         ? allEntries.map(renderEntry)
         : h(Fragment, null,
-            orderedGroups.map(group => h(SidebarGroup, { key: group.id, group, entries: allEntries.filter(entry => group.members.includes(entry.item.id)), renderEntry, actions, useSessionStatus: props.useSessionStatus, useWork: props.useWork, markedUnread, questions: roster.questions ?? {}, dragGroup, setDragGroup, dropTarget, setDropTarget })),
+            orderedGroups.map(group => h(SidebarGroup, { key: group.id, group, entries: allEntries.filter(entry => group.members.includes(entry.item.id)), allEntries, groups: sidebarGroups, renderEntry, actions, useSessionStatus: props.useSessionStatus, useWork: props.useWork, markedUnread, questions: roster.questions ?? {}, failures: roster.attentionFailures ?? [], dragGroup, setDragGroup, dropTarget, setDropTarget })),
             h('button', { type: 'button', className: 'bt-sidebar-group-toggle bt-ungrouped', 'aria-expanded': ungroupedOpen, onClick: () => setUngroupedOpen(!ungroupedOpen) }, h('span', { 'aria-hidden': true }, ungroupedOpen ? '▾' : '▸'), t('Ungrouped')),
-            ungroupedOpen ? ungrouped.map(renderEntry) : null),
-      wideContent ? (addingGroup
-        ? h('form', { className: 'bt-sidebar-group-form', onSubmit: addGroup }, h('input', { value: newGroupName, maxLength: 80, 'aria-label': t('Sidebar group name'), autoFocus: true, onChange: event => setNewGroupName(event.target.value) }), h('button', { type: 'submit' }, t('Create')), h('button', { type: 'button', onClick: () => setAddingGroup(false) }, t('Cancel')))
-        : h('button', { type: 'button', className: 'bt-sidebar-group-add', onClick: () => setAddingGroup(true) }, h(PlusIcon), t('New sidebar group'))) : null),
+            ungroupedOpen ? ungrouped.map(renderEntry) : null)),
     foot)
   return h(Fragment, null,
     h(TitleToggle, { hidden: mode === 'hidden', onToggle }),
@@ -671,31 +788,31 @@ function UpdateButton({ useUpdate, actions }) {
     setDshError('')
     void actions.installDshUpdate().catch(failure => setDshError(hostText(failure?.message ?? String(failure))))
   }
-  const label = phase === 'installing' ? t('Updating DS Bot…')
+  const label = phase === 'installing' ? t('Updating DS Bot Next…')
     : dshPhase === 'installing' ? t('Updating DSH…')
-      : phase === 'installed' ? t('DS Bot {version} is installed. Restart DSH to use it.', { version: update.installed ?? update.latest })
-        : phase === 'updated' ? t('DS Bot {version} is installed.', { version: update.installed ?? update.latest })
+      : phase === 'installed' ? t('DS Bot Next {version} is installed. Restart DSH to use it.', { version: update.installed ?? update.latest })
+        : phase === 'updated' ? t('DS Bot Next {version} is installed.', { version: update.installed ?? update.latest })
         : dshPhase === 'installed' ? t('Restart DSH to start using DSH {version}.', { version: dsh.installed ?? dsh.verified })
-          : update?.available ? t('DS Bot {version} is available', { version: update.latest })
+          : update?.available ? t('DS Bot Next {version} is available', { version: update.latest })
             : t('DSH {version} is available', { version: dsh?.verified })
   const message = error || (phase === 'failed' ? update.error : '')
   const dshMessage = dshError || (dshPhase === 'failed' ? dsh?.error : '')
   const dshText = dshPhase === 'installed'
     ? t('Restart DSH to start using DSH {version}.', { version: dsh.installed ?? dsh.verified })
     : dsh?.available === false && dsh?.blockedBy
-      ? t('Update DS Bot {version} first.', { version: dsh.blockedBy })
+      ? t('Update DS Bot Next {version} first.', { version: dsh.blockedBy })
       : t('You have {version}.', { version: dsh?.current })
   return h(Fragment, null,
     h('button', {
       ref: button, type: 'button', className: 'bt-round bt-update', 'data-phase': cloudPhase, 'aria-label': label, title: label,
       'aria-haspopup': 'dialog', 'aria-expanded': open, onClick: toggle,
     }, h(CloudDownloadIcon, { done: phase === 'installed' || phase === 'updated' }), phase === 'failed' || dshPhase === 'failed' ? h('span', { className: 'bt-update-dot', 'aria-hidden': true }) : null),
-    open && box ? createPortal(h('div', { className: 'bt-update-pop', role: 'dialog', 'aria-label': update?.available || phase !== 'idle' ? t('DS Bot update') : t('DSH update'), style: box },
+    open && box ? createPortal(h('div', { className: 'bt-update-pop', role: 'dialog', 'aria-label': update?.available || phase !== 'idle' ? t('DS Bot Next update') : t('DSH update'), style: box },
       update?.available || phase !== 'idle' ? h(Fragment, null,
-        h('div', { className: 'bt-update-title' }, phase === 'installed' || phase === 'updated' ? t('Update installed') : t('DS Bot {version}', { version: update.latest })),
+        h('div', { className: 'bt-update-title' }, phase === 'installed' || phase === 'updated' ? t('Update installed') : t('DS Bot Next {version}', { version: update.latest })),
         h('div', { className: 'bt-update-text' }, phase === 'installed'
-          ? t('Restart DSH to start using DS Bot {version}.', { version: update.installed ?? update.latest })
-          : phase === 'updated' ? t('DS Bot {version} is installed.', { version: update.installed ?? update.latest })
+          ? t('Restart DSH to start using DS Bot Next {version}.', { version: update.installed ?? update.latest })
+          : phase === 'updated' ? t('DS Bot Next {version} is installed.', { version: update.installed ?? update.latest })
             : t('You have {version}.', { version: update.current })),
         message ? h('div', { className: 'bt-update-error', role: 'alert' }, t('The update did not finish: {reason}', { reason: message })) : null,
         h('div', { className: 'bt-update-actions' },
@@ -948,9 +1065,9 @@ export function FooterAccount(props) {
 export function BotReturn({ wide, useSurface, actions }) {
   const mode = useSurface(value => value.mode)
   if (mode !== 'agent') return null
-  return h('button', { type: 'button', className: 'bt-return', 'aria-label': t('DS Bot'), title: t('DS Bot'), onClick: () => actions.setSurface('bot') },
+  return h('button', { type: 'button', className: 'bt-return', 'aria-label': t('DS Bot Next'), title: t('DS Bot Next'), onClick: () => actions.setSurface('bot') },
     h(BotMark, { look: MAIN_LOOK, size: 20 }),
-    wide ? h('span', { className: 'bt-return-name' }, t('DS Bot')) : null)
+    wide ? h('span', { className: 'bt-return-name' }, t('DS Bot Next')) : null)
 }
 
 // Agent mode has none of the shell-group styles, so the return button carries its own.
@@ -969,13 +1086,24 @@ export function BrandMark({ size = 24 }) {
   return h('span', { className: 'bt-brand-whale' }, h(BotMark, { look: MAIN_LOOK, size }))
 }
 export function BrandName() {
-  return h('span', { style: { fontWeight: 600, fontSize: 14 } }, 'DS Bot')
+  return h('span', { style: { fontWeight: 600, fontSize: 14 } }, 'DS Bot Next')
 }
 
 // With the whale holding the settings seat, the Bot row is just the account menu;
 // FooterAccount only shows when the seat went to no one. The shell's footer classes
 // are CSS-module names, so they match on their stems.
 export const SIDEBAR_CSS = `
+.bt-deliverables{flex:none;margin:0 6px 6px;border-bottom:1px solid var(--bt-line)}
+.bt-deliverables-panel{padding:0 4px 6px}
+.bt-deliverables-controls{display:flex;gap:5px}
+.bt-deliverables-controls select{flex:1;min-width:0;border:1px solid var(--bt-line-2);border-radius:6px;background:var(--bt-main);color:var(--bt-ink);font:inherit;font-size:12px;padding:5px}
+.bt-deliverables-controls button{border:0;border-radius:6px;background:var(--bt-hover);color:var(--bt-ink);font:inherit;font-size:12px;cursor:pointer}
+.bt-deliverables-list{max-height:180px;overflow:auto}
+.bt-deliverables-item{display:flex;flex-direction:column;gap:2px;width:100%;padding:7px;border:0;border-radius:6px;background:none;color:var(--bt-ink);font:inherit;text-align:left;cursor:pointer}
+.bt-deliverables-item:hover{background:var(--bt-hover)}
+.bt-deliverables-name{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.bt-deliverables-meta,.bt-deliverables-note{font-size:11px;color:var(--bt-ink-2)}
+.bt-deliverables-note{margin:8px 4px}
 .bt-attention{flex:none;margin:2px 6px 6px;border-bottom:1px solid var(--bt-line)}
 .bt-attention-count{margin-left:auto;color:var(--bt-ink-2);font-size:12px}
 .bt-attention-list{max-height:180px;overflow:auto;padding:0 4px 6px}
@@ -999,6 +1127,11 @@ export const SIDEBAR_CSS = `
 .bt-sidebar-group-grip svg{width:16px;height:16px}
 .bt-sidebar-group-head{display:flex;align-items:center;gap:4px}
 .bt-sidebar-group-toggle{display:flex;align-items:center;gap:8px;min-width:0;flex:1;border:0;background:none;color:var(--bt-ink);font:inherit;text-align:left;padding:8px;cursor:pointer}
+.bt-sidebar-group-status{display:flex;align-items:center;gap:5px;margin-left:auto;flex:none}
+.bt-group-status{font-size:11px;font-weight:600;line-height:1;white-space:nowrap}
+.bt-group-attention{color:color-mix(in srgb,var(--bt-star) 45%,var(--bt-ink))}
+.bt-group-unread{color:color-mix(in srgb,var(--bt-accent) 55%,var(--bt-ink))}
+.bt-group-working{color:color-mix(in srgb,var(--bt-green) 45%,var(--bt-ink))}
 .bt-sidebar-group-toggle strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .bt-sidebar-group-options{position:relative;flex:none}
 .bt-sidebar-group-options summary{cursor:pointer;list-style:none;padding:4px 8px;border-radius:6px;color:var(--bt-ink-2)}
@@ -1008,6 +1141,16 @@ export const SIDEBAR_CSS = `
 .bt-sidebar-group-menu button{border:0;background:none;text-align:left;color:var(--bt-ink);font:inherit;font-size:12px;padding:7px;border-radius:6px;cursor:pointer}
 .bt-sidebar-group-menu button:hover{background:var(--bt-hover)}
 .bt-sidebar-group-menu span,.bt-sidebar-group-count{font-size:12px;color:var(--bt-ink-2);padding:4px 8px}
+.bt-group-picker{padding:6px 8px 8px}
+.bt-group-picker-title{font-size:12px;font-weight:600;margin-bottom:6px}
+.bt-group-picker-list{max-height:180px;overflow:auto}
+.bt-group-picker-empty{font-size:12px;color:var(--bt-ink-2);margin:6px 0}
+.bt-group-picker-option{display:flex;align-items:center;gap:6px;min-height:30px;font-size:12px;cursor:pointer}
+.bt-group-picker-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.bt-group-picker-kind{font-size:11px;color:var(--bt-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:45%}
+.bt-group-picker-actions{display:flex;gap:6px;margin-top:8px}
+.bt-group-picker-actions button{border:0;border-radius:6px;background:var(--bt-active);color:var(--bt-ink);font:inherit;font-size:12px;padding:6px 8px;cursor:pointer}
+.bt-group-picker-actions button:disabled{opacity:.5;cursor:default}
 .bt-sidebar-group-form{display:flex;gap:4px;padding:5px;min-width:0}
 .bt-sidebar-group-form input{min-width:0;flex:1;border:1px solid var(--bt-line-2);border-radius:6px;background:var(--bt-main);color:var(--bt-ink);padding:5px;font:inherit}
 .bt-sidebar-group-form button{border:0;border-radius:6px;background:var(--bt-active);color:var(--bt-ink);font:inherit;font-size:12px;cursor:pointer}

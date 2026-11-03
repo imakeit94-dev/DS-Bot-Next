@@ -1,6 +1,6 @@
 {
   "name": "ds-bot",
-  "version": "0.2.4",
+  "version": "0.2.6",
   "description": "DS Bot: a team of long-lived Bots for DeepSeek Harness, with Main Bots, Bot-to-Bot messages and group chats",
   "keywords": [
     "dsh-plugin",
@@ -11,9 +11,9 @@
     "multi-agent",
     "agents"
   ],
-  "homepage": "https://github.com/Fei2411/DS-Bot#readme",
+  "homepage": "https://github.com/imakeit94-dev/DS-Bot-Next#readme",
   "bugs": {
-    "url": "https://github.com/Fei2411/DS-Bot/issues"
+    "url": "https://github.com/imakeit94-dev/DS-Bot-Next/issues"
   },
   "repository": {
     "type": "git",
@@ -39,7 +39,8 @@
     "web-search.js",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "build": "node scripts/build-client.mjs",

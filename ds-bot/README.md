@@ -1,3 +1,7 @@
+# DS Bot Next
+
+DS Bot Next is a fork of [DS Bot](https://github.com/Fei2411/DS-Bot) by Fei2411 and contributors. The original and this fork are distributed under Apache License 2.0; see LICENSE and NOTICE for the license and attribution notices. The sections below retain upstream documentation.
+
 # ds-bot
 
 The DS Bot plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh). It turns dsh into a team of long-lived Bots that talk to you, to each other and in group chats. See the [project page](../README.md) for an overview, install steps and screenshots.
