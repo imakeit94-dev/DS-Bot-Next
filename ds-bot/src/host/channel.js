@@ -1,4 +1,3 @@
-import { defaultRelayLimit } from './groups.js'
 // Client channel: the team view the browser renders, and the POST /api/bot endpoints.
 import { randomUUID } from 'node:crypto'
 import { changeSidebarGroups } from './sidebar-groups.js'
