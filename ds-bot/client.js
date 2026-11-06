@@ -44,6 +44,22 @@ var NAMESPACE = "ds-bot";
 var ZH = {
   // Shared
   "Main Bot": "主 Bot",
+  "Needs your attention": "需要你处理",
+  Deliverables: "成果",
+  "Refresh deliverables": "刷新",
+  "Filter by sidebar group": "按工作组筛选",
+  "All conversations": "全部对话",
+  "Loading deliverables…": "正在加载成果…",
+  "Could not load deliverables. Try refreshing.": "无法加载成果，请重试。",
+  "Some conversations could not be read.": "部分对话无法读取。",
+  "Showing the latest 200 files.": "显示最近的 200 个文件。",
+  "No delivered files yet.": "还没有已交付的文件。",
+  "Action needed": "待处理",
+  Unread: "未读",
+  "Run failed": "运行失败",
+  "Mark as handled": "已处理",
+  "Mark failure in {name} as handled": "将 {name} 的失败标记为已处理",
+  "Nothing needs your attention": "目前没有需要你处理的事项",
   Working: "工作中",
   "Waiting for your answer": "等你回答",
   "Waiting for {names}": "等 {names} 交回",
@@ -94,6 +110,26 @@ var ZH = {
   "Open {name}'s chat": "打开 {name} 的对话",
   "New Bot": "新 Bot",
   // Sidebar and account menu
+  "New sidebar group": "新建工作组",
+  "Move chats here…": "批量移入聊天…",
+  "Choose chats to move": "选择要移入的聊天",
+  "No other chats to move.": "没有其他聊天可以移入。",
+  "Move selected ({count})": "移入所选 ({count})",
+  "Drag to reorder": "拖动调整顺序",
+  "Drag to reorder {name}": "拖动调整 {name} 的顺序",
+  "Sidebar group name": "工作组名称",
+  Ungrouped: "未分组",
+  "Move to Ungrouped": "移至未分组",
+  "Move to {name}": "移至 {name}",
+  "Pin group": "置顶工作组",
+  "Unpin group": "取消置顶工作组",
+  "Move group up": "工作组上移",
+  "Move group down": "工作组下移",
+  "Rename sidebar group": "重命名工作组",
+  "Delete sidebar group": "删除工作组",
+  "Chats will move to Ungrouped.": "聊天将移至未分组。",
+  "Confirm delete": "确认删除",
+  "{bots} Bots · {rooms} group chats": "{bots} 个 Bot · {rooms} 个群聊",
   "Bot list": "Bot 列表",
   "Setting up your Main Bot…": "正在设置你的主 Bot…",
   "The Bot team could not start. The engine’s startup output — its console, or the app’s startup error box — has the cause.": "Bot 团队启动失败。原因在引擎的启动输出里——它的控制台，或应用的启动错误框。",
@@ -213,6 +249,35 @@ var ZH = {
   "Enter a DeepSeek API key": "填入 DeepSeek API key",
   "Open settings to set up a custom model": "打开设置配置自定义模型",
   "DS Bot": "DS Bot",
+  "DS Bot Next": "DS Bot Next",
+  "Updating DS Bot Next…": "正在更新 DS Bot Next…",
+  "Restart DSH to start using DS Bot Next {version}.": "重启 DSH 后开始使用 DS Bot Next {version}。",
+  "DS Bot Next {version} is installed.": "DS Bot Next {version} 已安装。",
+  "DS Bot Next {version} is installed. Restart DSH to use it.": "DS Bot Next {version} 已安装，重启 DSH 后生效。",
+  "DS Bot Next {version} is available": "DS Bot Next {version} 可以更新",
+  "Update DS Bot Next {version} first.": "先更新 DS Bot Next {version}。",
+  "DS Bot Next update": "DS Bot Next 更新",
+  "DS Bot Next {version}": "DS Bot Next {version}",
+  "DS Bot Next settings": "DS Bot Next 设置",
+  "About DS Bot Next": "关于 DS Bot Next",
+  "Star DS Bot Next on GitHub": "在 GitHub 上给 DS Bot Next 点 Star",
+  "If DS Bot Next helps you, a star on GitHub helps more people find it.": "如果 DS Bot Next 对你有用，欢迎在 GitHub 上点个 Star。",
+  "Project origin and license": "项目来源与许可",
+  "Based on DS Bot": "基于 DS Bot",
+  "DS Bot by Fei2411 and contributors · Apache License 2.0": "DS Bot 由 Fei2411 和贡献者开发 · Apache License 2.0",
+  "Original project": "原项目",
+  "License and notices": "许可证与声明",
+  "Apache License 2.0 and third-party notices": "Apache License 2.0 和第三方声明",
+  License: "许可证",
+  Notices: "声明",
+  "What you did, what you expected, and what happened instead. Copy it if you choose to share it.": "你做了什么、期望什么、实际发生了什么。需要分享时可自行复制。",
+  "Opens a blank issue in DS Bot Next. Descriptions and diagnostics are not sent automatically.": "在 DS Bot Next 仓库打开空白 issue，不会自动发送描述或诊断信息。",
+  "Opened a blank GitHub issue. Copy only the details you want to share.": "已打开空白 GitHub issue，请只复制你愿意分享的信息。",
+  "Copy description": "复制问题描述",
+  "Versions, system, models, and recent errors. Keys and paths are filtered; review before sharing.": "包含版本、系统、模型和近期错误。已过滤密钥和路径，分享前请检查。",
+  "Failed model calls and DS Bot Next problems show here, newest first.": "模型调用失败和 DS Bot Next 的问题会显示在这里，最新的在前。",
+  "Copied the description.": "已复制问题描述。",
+  "Could not copy. Select the text and copy it.": "无法复制，请选中文本后手动复制。",
   // Header
   "Message {name}": "给 {name} 发消息",
   Message: "发消息",
@@ -973,6 +1038,7 @@ var ZH = {
   "Installed from a local folder; update it there.": "从本地文件夹安装，请在那里更新。",
   "Updates are not offered for this install.": "这种安装方式不提供更新。",
   "Updates come with the DS Bot app.": "随 DS Bot 应用一起更新。",
+  "Updates come with the DeepSeek Bot app.": "随 DeepSeek Bot 应用一起更新。",
   Links: "链接",
   "Source code": "源代码",
   "Release notes": "发布说明",
@@ -1315,20 +1381,9 @@ function failureLabel(code, message) {
   if (FAILURES[code]) return t(FAILURES[code]);
   return message || code || t("Unknown error");
 }
-var URL_LIMIT = 7e3;
 var WHAT_MAX = 2e3;
-var PASTE_NOTE = "DS Bot copied the diagnostics to the clipboard. Paste them here.";
-var REST_NOTE = "The recent errors do not fit in the link. DS Bot copied the diagnostics to the clipboard: paste them below this line.";
-function issueUrl(base, { what = "", diagnostics }) {
-  const text = what.trim().slice(0, WHAT_MAX);
-  const title = text.split("\n")[0].slice(0, 80);
-  const build = (body) => `${base}?${new URLSearchParams({ template: "bug.yml", ...title ? { title } : {}, ...text ? { what: text } : {}, diagnostics: body })}`;
-  const full2 = build(diagnostics);
-  if (full2.length <= URL_LIMIT) return { url: full2, inline: true };
-  const facts = build(`${diagnostics.split("\n\n")[0]}
-
-${REST_NOTE}`);
-  return { url: facts.length <= URL_LIMIT ? facts : build(PASTE_NOTE), inline: false };
+function issueUrl(base) {
+  return `${base}?${new URLSearchParams({ template: "bug.yml" })}`;
 }
 
 // src/client/api.js
@@ -1662,6 +1717,9 @@ function teamActions({ call: call2, after, partFor, roster, ui: ui2, live, cards
     },
     quote: (sessionId, text) => ui2.set((state) => ({ ...state, quote: { sessionId, text, token: Date.now() } })),
     clearQuote: (token) => ui2.set((state) => state.quote?.token === token ? { ...state, quote: null } : state),
+    sidebarGroup: (body) => after(call2("sidebar-group", body)),
+    listDeliverables: (groupId) => call2("deliverables", { groupId }),
+    clearAttentionFailure: (id) => after(call2("attention-failure-clear", { id })),
     setFlags: (id, flags) => after(call2("set-flags", { id, ...flags })),
     deleteRoom: (id) => after(call2("delete-room", { id })),
     openMenu: (menu) => {
@@ -9334,6 +9392,44 @@ function installFrameWatch(frame) {
   };
 }
 
+// src/client/attention-list.js
+function attentionItems(roster, approvals, interactions) {
+  const items = [];
+  for (const approval of approvals ?? []) {
+    const bot = roster.byId[approval.botId];
+    const room2 = approval.roomId && roster.roomsById[approval.roomId];
+    if (approval.roomId ? !room2 : !bot) continue;
+    items.push({ key: `approval:${approval.id}`, target: room2?.id ?? bot.id, name: room2?.name ?? bot.name, kind: "approval", bot: room2 ? bot?.name : void 0 });
+  }
+  for (const bot of roster.bots ?? []) {
+    const part = bot.sessionId ?? bot.id;
+    if (roster.questions?.[part] || interactions[part] === "question") {
+      items.push({ key: `question:${part}`, target: bot.id, name: bot.name, kind: "question" });
+    }
+  }
+  for (const failure of roster.attentionFailures ?? []) {
+    const room2 = roster.roomsById[failure.targetId];
+    const bot = roster.byId[failure.targetId];
+    if (!room2 && !bot) continue;
+    items.push({ key: `failure:${failure.id}`, id: failure.id, target: failure.targetId, name: room2?.name ?? bot.name, kind: "failure", bot: room2 ? roster.byId[failure.botId]?.name : void 0 });
+  }
+  return items;
+}
+
+// src/client/sidebar-group-status.js
+function sidebarGroupStatus(entries2, statuses, work, markedUnread, questions, failures) {
+  let attention = false, unread = false, working = false;
+  for (const { item, kind } of entries2) {
+    const id = kind === "bot" ? item.sessionId ?? item.id : item.id;
+    const status = statuses[id] ?? {};
+    const approvals = work.approvals ?? [];
+    attention ||= Boolean(questions[id]) || status.pendingInteraction !== void 0 || approvals.some((entry) => kind === "room" ? entry.roomId === item.id : !entry.roomId && entry.botId === item.id) || failures.some((entry) => entry.targetId === item.id);
+    unread ||= markedUnread[item.id] === true || status.completionUnread === true;
+    working ||= status.running === true || kind === "room" && (work.rooms?.[item.id]?.length ?? 0) > 0 || kind === "bot" && (work.bots?.[item.id] !== void 0 || Object.values(work.rooms ?? {}).some((members) => members.some((member) => member.botId === item.id)));
+  }
+  return { attention, unread, working };
+}
+
 // src/client/sidebar.js
 var import_react19 = require("react");
 var import_react_dom3 = require("react-dom");
@@ -9657,11 +9753,241 @@ var bootHint = () => {
   const last = clientErrors().at(-1)?.text;
   return last === void 0 ? t("The Bot team could not start. The engine’s startup output — its console, or the app’s startup error box — has the cause.") : t("The Bot team could not start. {error}. The engine’s startup output — its console, or the app’s startup error box — has the cause.", { error: last });
 };
+function SidebarGroup({ group, entries: entries2, allEntries, groups, renderEntry, actions, useSessionStatus, useWork, markedUnread, questions, failures, dragGroup, setDragGroup, dropTarget, setDropTarget }) {
+  const [editing, setEditing] = (0, import_react19.useState)(false);
+  const [name, setName] = (0, import_react19.useState)(group.name);
+  const [confirmDelete, setConfirmDelete] = (0, import_react19.useState)(false);
+  const [selecting, setSelecting] = (0, import_react19.useState)(false);
+  const [selected, setSelected] = (0, import_react19.useState)([]);
+  const [moving, setMoving] = (0, import_react19.useState)(false);
+  const options = (0, import_react19.useRef)(null);
+  (0, import_react19.useEffect)(() => {
+    const close = (event) => {
+      if (options.current && !options.current.contains(event.target)) {
+        options.current.open = false;
+        setConfirmDelete(false);
+      }
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, []);
+  const statusesText = useSessionStatus((map) => JSON.stringify(Object.fromEntries(entries2.map(({ item, kind }) => {
+    const id = kind === "bot" ? currentPart(item) : item.id;
+    const status2 = map.get(id);
+    return [id, { running: status2?.running, completionUnread: status2?.completionUnread, pendingInteraction: status2?.pendingInteraction?.kind }];
+  }))));
+  const workText = useWork((work) => JSON.stringify({ approvals: work.approvals, rooms: work.rooms, bots: work.bots }));
+  const status = sidebarGroupStatus(entries2, JSON.parse(statusesText), JSON.parse(workText), markedUnread, questions, failures);
+  const statusLabels = [status.attention ? t("Needs your attention") : "", status.unread ? t("Unread activity") : "", status.working ? t("Working") : ""].filter(Boolean);
+  const act = (body) => {
+    void actions.sidebarGroup({ groupId: group.id, ...body }).catch((error) => actions.reportError(error, "sidebar-group"));
+  };
+  const candidates = allEntries.filter((entry) => entry.kind !== "agent" && !entry.item.hidden && !group.members.includes(entry.item.id));
+  const bots = entries2.filter((entry) => entry.kind === "bot").length;
+  const rooms = entries2.filter((entry) => entry.kind === "room").length;
+  const canDrop = dragGroup && dragGroup.id !== group.id && dragGroup.pinned === !!group.pinned;
+  return (0, import_react19.createElement)(
+    "section",
+    {
+      className: "bt-sidebar-group",
+      "aria-label": group.name,
+      "data-drop": dropTarget?.id === group.id ? dropTarget.position : void 0,
+      "data-dragging": dragGroup?.id === group.id || void 0,
+      onDragOver: (event) => {
+        if (!canDrop) {
+          setDropTarget(null);
+          return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        const rect = event.currentTarget.getBoundingClientRect();
+        const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+        setDropTarget((current) => current?.id === group.id && current.position === position ? current : { id: group.id, position });
+      },
+      onDragLeave: (event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setDropTarget((current) => current?.id === group.id ? null : current);
+      },
+      onDrop: (event) => {
+        if (!canDrop) return;
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+        void actions.sidebarGroup({ action: "move-relative", groupId: dragGroup.id, targetId: group.id, position }).catch((error) => actions.reportError(error, "sidebar-group"));
+        setDropTarget(null);
+        setDragGroup(null);
+      }
+    },
+    (0, import_react19.createElement)(
+      "div",
+      { className: "bt-sidebar-group-head" },
+      (0, import_react19.createElement)("button", {
+        type: "button",
+        className: "bt-sidebar-group-grip",
+        draggable: true,
+        "aria-label": t("Drag to reorder {name}", { name: group.name }),
+        title: t("Drag to reorder"),
+        onDragStart: (event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", "sidebar-group");
+          setDragGroup({ id: group.id, pinned: !!group.pinned });
+        },
+        onDragEnd: () => {
+          setDragGroup(null);
+          setDropTarget(null);
+        }
+      }, (0, import_react19.createElement)("svg", { viewBox: "0 0 16 16", "aria-hidden": true }, [4, 8, 12].map((y) => [6, 10].map((x) => (0, import_react19.createElement)("circle", { key: `${x}-${y}`, cx: x, cy: y, r: 1, fill: "currentColor" }))))),
+      (0, import_react19.createElement)(
+        "button",
+        { type: "button", className: "bt-sidebar-group-toggle", "aria-expanded": !group.collapsed, "aria-label": [group.name, ...statusLabels].join(", "), onClick: () => act({ action: "collapse", value: !group.collapsed }) },
+        (0, import_react19.createElement)("span", { "aria-hidden": true }, group.collapsed ? "▸" : "▾"),
+        (0, import_react19.createElement)("strong", null, group.name),
+        group.pinned ? (0, import_react19.createElement)(PinMark) : null,
+        (0, import_react19.createElement)("span", { className: "bt-sidebar-group-status", "aria-hidden": true }, status.attention ? (0, import_react19.createElement)("span", { className: "bt-group-status bt-group-attention", title: t("Needs your attention") }, t("Action needed")) : null, status.unread ? (0, import_react19.createElement)("span", { className: "bt-group-status bt-group-unread", title: t("Unread activity") }, t("Unread")) : null, status.working ? (0, import_react19.createElement)("span", { className: "bt-group-status bt-group-working", title: t("Working") }, t("Working")) : null)
+      ),
+      (0, import_react19.createElement)(
+        "details",
+        { ref: options, className: "bt-sidebar-group-options" },
+        (0, import_react19.createElement)("summary", { "aria-label": t("{name} actions", { name: group.name }) }, "···"),
+        (0, import_react19.createElement)(
+          "div",
+          { className: "bt-sidebar-group-menu" },
+          (0, import_react19.createElement)("button", { type: "button", onClick: () => {
+            options.current.open = false;
+            setSelected([]);
+            setSelecting(true);
+          } }, t("Move chats here…")),
+          (0, import_react19.createElement)("button", { type: "button", onClick: () => {
+            options.current.open = false;
+            act({ action: "pin", value: !group.pinned });
+          } }, t(group.pinned ? "Unpin group" : "Pin group")),
+          (0, import_react19.createElement)("button", { type: "button", onClick: () => {
+            options.current.open = false;
+            act({ action: "reorder", direction: -1 });
+          } }, t("Move group up")),
+          (0, import_react19.createElement)("button", { type: "button", onClick: () => {
+            options.current.open = false;
+            act({ action: "reorder", direction: 1 });
+          } }, t("Move group down")),
+          (0, import_react19.createElement)("button", { type: "button", onClick: () => {
+            options.current.open = false;
+            setName(group.name);
+            setEditing(true);
+          } }, t("Rename sidebar group")),
+          confirmDelete ? (0, import_react19.createElement)(import_react19.Fragment, null, (0, import_react19.createElement)("span", null, t("Chats will move to Ungrouped.")), (0, import_react19.createElement)("button", { type: "button", onClick: () => act({ action: "delete" }) }, t("Confirm delete")), (0, import_react19.createElement)("button", { type: "button", onClick: () => setConfirmDelete(false) }, t("Cancel"))) : (0, import_react19.createElement)("button", { type: "button", onClick: () => setConfirmDelete(true) }, t("Delete sidebar group"))
+        )
+      )
+    ),
+    selecting ? (0, import_react19.createElement)(
+      "form",
+      { className: "bt-group-picker", onSubmit: (event) => {
+        event.preventDefault();
+        if (!selected.length || moving) return;
+        setMoving(true);
+        void actions.sidebarGroup({ action: "move-entries", groupId: group.id, entryIds: selected }).then(() => {
+          setSelecting(false);
+          setSelected([]);
+        }).catch((error) => actions.reportError(error, "sidebar-group")).finally(() => setMoving(false));
+      } },
+      (0, import_react19.createElement)("div", { className: "bt-group-picker-title" }, t("Choose chats to move")),
+      (0, import_react19.createElement)("div", { className: "bt-group-picker-list" }, candidates.length === 0 ? (0, import_react19.createElement)("p", { className: "bt-group-picker-empty" }, t("No other chats to move.")) : candidates.map(({ item, kind }) => {
+        const source = groups.find((other) => other.members.includes(item.id));
+        return (0, import_react19.createElement)(
+          "label",
+          { className: "bt-group-picker-option", key: item.id },
+          (0, import_react19.createElement)("input", { type: "checkbox", checked: selected.includes(item.id), disabled: moving, onChange: (event) => setSelected((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id)) }),
+          (0, import_react19.createElement)("span", { className: "bt-group-picker-name" }, item.name),
+          (0, import_react19.createElement)("span", { className: "bt-group-picker-kind" }, t(kind === "bot" ? "Bot" : "Group chat"), source ? ` · ${source.name}` : "")
+        );
+      })),
+      (0, import_react19.createElement)("div", { className: "bt-group-picker-actions" }, (0, import_react19.createElement)("button", { type: "submit", disabled: selected.length === 0 || moving }, t("Move selected ({count})", { count: selected.length })), (0, import_react19.createElement)("button", { type: "button", disabled: moving, onClick: () => setSelecting(false) }, t("Cancel")))
+    ) : null,
+    editing ? (0, import_react19.createElement)(
+      "form",
+      { className: "bt-sidebar-group-form", onSubmit: (event) => {
+        event.preventDefault();
+        if (!name.trim()) return;
+        act({ action: "rename", name });
+        setEditing(false);
+      } },
+      (0, import_react19.createElement)("input", { value: name, maxLength: 80, "aria-label": t("Sidebar group name"), onChange: (event) => setName(event.target.value), autoFocus: true }),
+      (0, import_react19.createElement)("button", { type: "submit" }, t("Save")),
+      (0, import_react19.createElement)("button", { type: "button", onClick: () => setEditing(false) }, t("Cancel"))
+    ) : null,
+    group.collapsed ? (0, import_react19.createElement)("div", { className: "bt-sidebar-group-count" }, t("{bots} Bots · {rooms} group chats", { bots, rooms })) : (0, import_react19.createElement)("div", { className: "bt-sidebar-group-entries" }, entries2.map(renderEntry))
+  );
+}
+function DeliverablesList({ groups, actions }) {
+  const [open, setOpen] = (0, import_react19.useState)(false);
+  const [groupId, setGroupId] = (0, import_react19.useState)("");
+  const [refresh, setRefresh] = (0, import_react19.useState)(0);
+  const [result, setResult] = (0, import_react19.useState)({ loading: false, items: [] });
+  (0, import_react19.useEffect)(() => {
+    if (!open) return void 0;
+    let active = true;
+    setResult({ loading: true, items: [] });
+    void actions.listDeliverables(groupId || null).then((value) => {
+      if (active) setResult({ ...value, loading: false });
+    }).catch(() => {
+      if (active) setResult({ loading: false, items: [], error: true });
+    });
+    return () => {
+      active = false;
+    };
+  }, [open, groupId, refresh]);
+  (0, import_react19.useEffect)(() => {
+    if (groupId && !groups.some((group) => group.id === groupId)) setGroupId("");
+  }, [groups, groupId]);
+  return (0, import_react19.createElement)(
+    "div",
+    { className: "bt-deliverables" },
+    (0, import_react19.createElement)("button", { type: "button", className: "bt-sidebar-group-toggle", "aria-expanded": open, onClick: () => setOpen(!open) }, (0, import_react19.createElement)("span", { "aria-hidden": true }, open ? "▾" : "▸"), (0, import_react19.createElement)("strong", null, t("Deliverables"))),
+    open ? (0, import_react19.createElement)(
+      "div",
+      { className: "bt-deliverables-panel" },
+      (0, import_react19.createElement)(
+        "div",
+        { className: "bt-deliverables-controls" },
+        (0, import_react19.createElement)(
+          "select",
+          { value: groupId, "aria-label": t("Filter by sidebar group"), onChange: (event) => setGroupId(event.target.value) },
+          (0, import_react19.createElement)("option", { value: "" }, t("All conversations")),
+          groups.map((group) => (0, import_react19.createElement)("option", { key: group.id, value: group.id }, group.name))
+        ),
+        (0, import_react19.createElement)("button", { type: "button", onClick: () => setRefresh((value) => value + 1), disabled: result.loading }, t("Refresh deliverables"))
+      ),
+      result.loading ? (0, import_react19.createElement)("p", { className: "bt-deliverables-note", role: "status" }, t("Loading deliverables…")) : result.error ? (0, import_react19.createElement)("p", { className: "bt-deliverables-note", role: "alert" }, t("Could not load deliverables. Try refreshing.")) : (0, import_react19.createElement)(
+        import_react19.Fragment,
+        null,
+        result.unavailable ? (0, import_react19.createElement)("p", { className: "bt-deliverables-note", role: "status" }, t("Some conversations could not be read.")) : null,
+        result.truncated ? (0, import_react19.createElement)("p", { className: "bt-deliverables-note" }, t("Showing the latest 200 files.")) : null,
+        result.items.length === 0 && !result.unavailable ? (0, import_react19.createElement)("p", { className: "bt-deliverables-note" }, t("No delivered files yet.")) : null,
+        (0, import_react19.createElement)("div", { className: "bt-deliverables-list" }, result.items.map((item) => (0, import_react19.createElement)(
+          "button",
+          { type: "button", className: "bt-deliverables-item", key: item.id, onClick: () => actions.openSession(item.targetId) },
+          (0, import_react19.createElement)("span", { className: "bt-deliverables-name" }, item.name),
+          (0, import_react19.createElement)("span", { className: "bt-deliverables-meta" }, item.sourceName, typeof item.time === "number" ? ` · ${clockLabel(item.time)}` : "")
+        )))
+      )
+    ) : null
+  );
+}
 function TeamSidebar(props) {
   const { wide, useRoster, useUi, useSessions, actions } = props;
   const listRef = (0, import_react19.useRef)(null);
+  const [addingGroup, setAddingGroup] = (0, import_react19.useState)(false);
+  const [attentionOpen, setAttentionOpen] = (0, import_react19.useState)(false);
+  const [newGroupName, setNewGroupName] = (0, import_react19.useState)("");
+  const [ungroupedOpen, setUngroupedOpen] = (0, import_react19.useState)(true);
+  const [dragGroup, setDragGroup] = (0, import_react19.useState)(null);
+  const [dropTarget, setDropTarget] = (0, import_react19.useState)(null);
   const roster = useRoster((value) => value);
   const markedUnread = useUi((value) => value.unread);
+  const approvalsText = props.useWork ? props.useWork((work) => JSON.stringify(work.approvals ?? [])) : "[]";
+  const interactionsText = props.useSessionStatus ? props.useSessionStatus((map) => JSON.stringify(Object.fromEntries(roster.bots.map((bot) => {
+    const id = currentPart(bot);
+    return [id, map.get(id)?.pendingInteraction?.kind];
+  })))) : "{}";
+  const attention = attentionItems(roster, JSON.parse(approvalsText), JSON.parse(interactionsText));
   const uiNow = useUi((value) => value);
   props.useRegistry((value) => value);
   const frameSnap = props.useFrame ? props.useFrame((value) => value) : { viewport: typeof window === "undefined" ? 0 : window.innerWidth, sidebarWidth: FALLBACK_SIDEBAR_WIDTH, collapsedWidth: 0 };
@@ -9692,6 +10018,8 @@ function TeamSidebar(props) {
     return entries2.sort((a, b) => Number(Boolean(b.item.pinned)) - Number(Boolean(a.item.pinned)) || b.at - a.at);
   }, [roster, updated]);
   const main = roster.byId[roster.mainBotId];
+  const sidebarGroups = roster.prefs?.sidebarGroups ?? [];
+  const assigned = new Set(sidebarGroups.flatMap((group) => group.members));
   useListGlide(listRef, wideContent, order.map((entry) => entry.item.id).join(","));
   useLandOnMainBot(roster, useSessions, actions);
   const openWidth = drag?.width ?? frameSnap.sidebarWidth;
@@ -9868,6 +10196,18 @@ function TeamSidebar(props) {
     newAgentSession: (id) => navigate(actions.newAgentSession, id)
   };
   const rowProps = { roster, actions: rowActions, useSessions, useUi, useSessionStatus: props.useSessionStatus, useSessionRetainInfo: props.useSessionRetainInfo, useActivity: props.useActivity, useWork: props.useWork, wide: wideContent };
+  const renderEntry = (entry) => entry.kind === "bot" ? (0, import_react19.createElement)(BotRow, { key: entry.item.id, ...rowProps, bot: entry.item, marked: markedUnread[entry.item.id] === true }) : entry.kind === "room" ? (0, import_react19.createElement)(RoomRow, { key: entry.item.id, ...rowProps, room: entry.item, marked: markedUnread[entry.item.id] === true }) : (0, import_react19.createElement)(AgentRow, { key: entry.item.id, ...rowProps, agent: entry.item, marked: markedUnread[entry.item.id] === true });
+  const allEntries = main ? [{ kind: "bot", item: main }, ...order] : order;
+  const orderedGroups = [...sidebarGroups].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
+  const ungrouped = allEntries.filter((entry) => !assigned.has(entry.item.id));
+  const addGroup = (event) => {
+    event.preventDefault();
+    if (!newGroupName.trim()) return;
+    void actions.sidebarGroup({ action: "create", name: newGroupName }).then(() => {
+      setNewGroupName("");
+      setAddingGroup(false);
+    }).catch((error) => actions.reportError(error, "sidebar-group"));
+  };
   const typeToSearch = (event) => {
     if (event.defaultPrevented || event.key.length !== 1 || event.key === " " || event.metaKey || event.ctrlKey || event.altKey || event.nativeEvent.isComposing) return;
     if (event.target instanceof Element && event.target.closest("input,textarea,[contenteditable]")) return;
@@ -9915,12 +10255,44 @@ function TeamSidebar(props) {
     "div",
     { className: wideContent ? "bt-side" : "bt-side bt-rail", onKeyDown: typeToSearch },
     top,
+    wideContent ? (0, import_react19.createElement)(
+      "div",
+      { className: "bt-attention" },
+      (0, import_react19.createElement)(
+        "button",
+        { type: "button", className: "bt-sidebar-group-toggle", "aria-expanded": attentionOpen, onClick: () => setAttentionOpen(!attentionOpen) },
+        (0, import_react19.createElement)("span", { "aria-hidden": true }, attentionOpen ? "▾" : "▸"),
+        (0, import_react19.createElement)("strong", null, t("Needs your attention")),
+        (0, import_react19.createElement)("span", { className: "bt-attention-count" }, attention.length)
+      ),
+      attentionOpen ? (0, import_react19.createElement)("div", { className: "bt-attention-list" }, attention.length === 0 ? (0, import_react19.createElement)("div", { className: "bt-attention-empty" }, t("Nothing needs your attention")) : attention.map((item) => (0, import_react19.createElement)(
+        "div",
+        { className: "bt-attention-row", key: item.key },
+        (0, import_react19.createElement)(
+          "button",
+          { type: "button", className: "bt-attention-item", onClick: () => rowActions.openSession(item.target) },
+          (0, import_react19.createElement)("span", { className: "bt-attention-name" }, item.name),
+          (0, import_react19.createElement)("span", { className: "bt-attention-kind" }, t(item.kind === "approval" ? "Waiting for your approval" : item.kind === "question" ? "Waiting for your answer" : "Run failed"), item.bot ? ` · ${item.bot}` : "")
+        ),
+        item.kind === "failure" ? (0, import_react19.createElement)("button", { type: "button", className: "bt-attention-clear", "aria-label": t("Mark failure in {name} as handled", { name: item.name }), title: t("Mark as handled"), onClick: () => {
+          void actions.clearAttentionFailure(item.id).catch((error) => actions.reportError(error, "attention-failure"));
+        } }, t("Mark as handled")) : null
+      ))) : null
+    ) : null,
+    wideContent ? (0, import_react19.createElement)(DeliverablesList, { groups: sidebarGroups, actions: rowActions }) : null,
     wideContent && roster.readOnly ? (0, import_react19.createElement)("div", { className: "bt-hint bt-read-only", role: "status" }, hostText(roster.readOnly)) : null,
+    wideContent ? addingGroup ? (0, import_react19.createElement)("form", { className: "bt-sidebar-group-form", onSubmit: addGroup }, (0, import_react19.createElement)("input", { value: newGroupName, maxLength: 80, "aria-label": t("Sidebar group name"), autoFocus: true, onChange: (event) => setNewGroupName(event.target.value) }), (0, import_react19.createElement)("button", { type: "submit" }, t("Create")), (0, import_react19.createElement)("button", { type: "button", onClick: () => setAddingGroup(false) }, t("Cancel"))) : (0, import_react19.createElement)("button", { type: "button", className: "bt-sidebar-group-add", onClick: () => setAddingGroup(true) }, (0, import_react19.createElement)(PlusIcon), t("New sidebar group")) : null,
     (0, import_react19.createElement)(
       "div",
       { ref: listRef, className: "bt-list", role: "region", "aria-label": t("Bot list") },
-      wideContent ? main ? (0, import_react19.createElement)(BotRow, { ...rowProps, bot: main, marked: markedUnread[main.id] === true }) : roster.ready ? null : (0, import_react19.createElement)("div", { className: "bt-hint" }, uiNow.bootFailed ? bootHint() : t("Setting up your Main Bot…")) : null,
-      order.map((entry) => entry.kind === "bot" ? (0, import_react19.createElement)(BotRow, { key: entry.item.id, ...rowProps, bot: entry.item, marked: markedUnread[entry.item.id] === true }) : entry.kind === "room" ? (0, import_react19.createElement)(RoomRow, { key: entry.item.id, ...rowProps, room: entry.item, marked: markedUnread[entry.item.id] === true }) : (0, import_react19.createElement)(AgentRow, { key: entry.item.id, ...rowProps, agent: entry.item, marked: markedUnread[entry.item.id] === true }))
+      wideContent && !main && !roster.ready ? (0, import_react19.createElement)("div", { className: "bt-hint" }, uiNow.bootFailed ? bootHint() : t("Setting up your Main Bot…")) : null,
+      !wideContent ? order.map(renderEntry) : sidebarGroups.length === 0 ? allEntries.map(renderEntry) : (0, import_react19.createElement)(
+        import_react19.Fragment,
+        null,
+        orderedGroups.map((group) => (0, import_react19.createElement)(SidebarGroup, { key: group.id, group, entries: allEntries.filter((entry) => group.members.includes(entry.item.id)), allEntries, groups: sidebarGroups, renderEntry, actions, useSessionStatus: props.useSessionStatus, useWork: props.useWork, markedUnread, questions: roster.questions ?? {}, failures: roster.attentionFailures ?? [], dragGroup, setDragGroup, dropTarget, setDropTarget })),
+        (0, import_react19.createElement)("button", { type: "button", className: "bt-sidebar-group-toggle bt-ungrouped", "aria-expanded": ungroupedOpen, onClick: () => setUngroupedOpen(!ungroupedOpen) }, (0, import_react19.createElement)("span", { "aria-hidden": true }, ungroupedOpen ? "▾" : "▸"), t("Ungrouped")),
+        ungroupedOpen ? ungrouped.map(renderEntry) : null
+      )
     ),
     foot
   );
@@ -9979,10 +10351,10 @@ function UpdateButton({ useUpdate, actions }) {
     setDshError("");
     void actions.installDshUpdate().catch((failure) => setDshError(hostText(failure?.message ?? String(failure))));
   };
-  const label = phase === "installing" ? t("Updating DS Bot…") : dshPhase === "installing" ? t("Updating DSH…") : phase === "installed" ? t("DS Bot {version} is installed. Restart DSH to use it.", { version: update.installed ?? update.latest }) : phase === "updated" ? t("DS Bot {version} is installed.", { version: update.installed ?? update.latest }) : dshPhase === "installed" ? t("Restart DSH to start using DSH {version}.", { version: dsh.installed ?? dsh.verified }) : update?.available ? t("DS Bot {version} is available", { version: update.latest }) : t("DSH {version} is available", { version: dsh?.verified });
+  const label = phase === "installing" ? t("Updating DS Bot Next…") : dshPhase === "installing" ? t("Updating DSH…") : phase === "installed" ? t("DS Bot Next {version} is installed. Restart DSH to use it.", { version: update.installed ?? update.latest }) : phase === "updated" ? t("DS Bot Next {version} is installed.", { version: update.installed ?? update.latest }) : dshPhase === "installed" ? t("Restart DSH to start using DSH {version}.", { version: dsh.installed ?? dsh.verified }) : update?.available ? t("DS Bot Next {version} is available", { version: update.latest }) : t("DSH {version} is available", { version: dsh?.verified });
   const message = error || (phase === "failed" ? update.error : "");
   const dshMessage = dshError || (dshPhase === "failed" ? dsh?.error : "");
-  const dshText = dshPhase === "installed" ? t("Restart DSH to start using DSH {version}.", { version: dsh.installed ?? dsh.verified }) : dsh?.available === false && dsh?.blockedBy ? t("Update DS Bot {version} first.", { version: dsh.blockedBy }) : t("You have {version}.", { version: dsh?.current });
+  const dshText = dshPhase === "installed" ? t("Restart DSH to start using DSH {version}.", { version: dsh.installed ?? dsh.verified }) : dsh?.available === false && dsh?.blockedBy ? t("Update DS Bot Next {version} first.", { version: dsh.blockedBy }) : t("You have {version}.", { version: dsh?.current });
   return (0, import_react19.createElement)(
     import_react19.Fragment,
     null,
@@ -9999,12 +10371,12 @@ function UpdateButton({ useUpdate, actions }) {
     }, (0, import_react19.createElement)(CloudDownloadIcon, { done: phase === "installed" || phase === "updated" }), phase === "failed" || dshPhase === "failed" ? (0, import_react19.createElement)("span", { className: "bt-update-dot", "aria-hidden": true }) : null),
     open && box ? (0, import_react_dom3.createPortal)((0, import_react19.createElement)(
       "div",
-      { className: "bt-update-pop", role: "dialog", "aria-label": update?.available || phase !== "idle" ? t("DS Bot update") : t("DSH update"), style: box },
+      { className: "bt-update-pop", role: "dialog", "aria-label": update?.available || phase !== "idle" ? t("DS Bot Next update") : t("DSH update"), style: box },
       update?.available || phase !== "idle" ? (0, import_react19.createElement)(
         import_react19.Fragment,
         null,
-        (0, import_react19.createElement)("div", { className: "bt-update-title" }, phase === "installed" || phase === "updated" ? t("Update installed") : t("DS Bot {version}", { version: update.latest })),
-        (0, import_react19.createElement)("div", { className: "bt-update-text" }, phase === "installed" ? t("Restart DSH to start using DS Bot {version}.", { version: update.installed ?? update.latest }) : phase === "updated" ? t("DS Bot {version} is installed.", { version: update.installed ?? update.latest }) : t("You have {version}.", { version: update.current })),
+        (0, import_react19.createElement)("div", { className: "bt-update-title" }, phase === "installed" || phase === "updated" ? t("Update installed") : t("DS Bot Next {version}", { version: update.latest })),
+        (0, import_react19.createElement)("div", { className: "bt-update-text" }, phase === "installed" ? t("Restart DSH to start using DS Bot Next {version}.", { version: update.installed ?? update.latest }) : phase === "updated" ? t("DS Bot Next {version} is installed.", { version: update.installed ?? update.latest }) : t("You have {version}.", { version: update.current })),
         message ? (0, import_react19.createElement)("div", { className: "bt-update-error", role: "alert" }, t("The update did not finish: {reason}", { reason: message })) : null,
         (0, import_react19.createElement)(
           "div",
@@ -10303,9 +10675,9 @@ function BotReturn({ wide, useSurface, actions }) {
   if (mode !== "agent") return null;
   return (0, import_react19.createElement)(
     "button",
-    { type: "button", className: "bt-return", "aria-label": t("DS Bot"), title: t("DS Bot"), onClick: () => actions.setSurface("bot") },
+    { type: "button", className: "bt-return", "aria-label": t("DS Bot Next"), title: t("DS Bot Next"), onClick: () => actions.setSurface("bot") },
     (0, import_react19.createElement)(BotMark, { look: MAIN_LOOK, size: 20 }),
-    wide ? (0, import_react19.createElement)("span", { className: "bt-return-name" }, t("DS Bot")) : null
+    wide ? (0, import_react19.createElement)("span", { className: "bt-return-name" }, t("DS Bot Next")) : null
   );
 }
 var RETURN_CSS = `
@@ -10322,9 +10694,74 @@ function BrandMark({ size = 24 }) {
   return (0, import_react19.createElement)("span", { className: "bt-brand-whale" }, (0, import_react19.createElement)(BotMark, { look: MAIN_LOOK, size }));
 }
 function BrandName() {
-  return (0, import_react19.createElement)("span", { style: { fontWeight: 600, fontSize: 14 } }, "DS Bot");
+  return (0, import_react19.createElement)("span", { style: { fontWeight: 600, fontSize: 14 } }, "DS Bot Next");
 }
 var SIDEBAR_CSS = `
+.bt-deliverables{flex:none;margin:0 6px 6px;border-bottom:1px solid var(--bt-line)}
+.bt-deliverables-panel{padding:0 4px 6px}
+.bt-deliverables-controls{display:flex;gap:5px}
+.bt-deliverables-controls select{flex:1;min-width:0;border:1px solid var(--bt-line-2);border-radius:6px;background:var(--bt-main);color:var(--bt-ink);font:inherit;font-size:12px;padding:5px}
+.bt-deliverables-controls button{border:0;border-radius:6px;background:var(--bt-hover);color:var(--bt-ink);font:inherit;font-size:12px;cursor:pointer}
+.bt-deliverables-list{max-height:180px;overflow:auto}
+.bt-deliverables-item{display:flex;flex-direction:column;gap:2px;width:100%;padding:7px;border:0;border-radius:6px;background:none;color:var(--bt-ink);font:inherit;text-align:left;cursor:pointer}
+.bt-deliverables-item:hover{background:var(--bt-hover)}
+.bt-deliverables-name{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.bt-deliverables-meta,.bt-deliverables-note{font-size:11px;color:var(--bt-ink-2)}
+.bt-deliverables-note{margin:8px 4px}
+.bt-attention{flex:none;margin:2px 6px 6px;border-bottom:1px solid var(--bt-line)}
+.bt-attention-count{margin-left:auto;color:var(--bt-ink-2);font-size:12px}
+.bt-attention-list{max-height:180px;overflow:auto;padding:0 4px 6px}
+.bt-attention-row{display:flex;align-items:center;min-width:0}
+.bt-attention-clear{flex:none;padding:5px;border:0;border-radius:6px;background:none;color:var(--bt-ink-2);font:inherit;font-size:12px;cursor:pointer}
+.bt-attention-clear:hover{background:var(--bt-hover);color:var(--bt-ink)}
+.bt-attention-item{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px;width:100%;padding:7px 8px;border:0;border-radius:6px;background:none;color:var(--bt-ink);font:inherit;text-align:left;cursor:pointer}
+.bt-attention-item:hover{background:var(--bt-hover)}
+.bt-attention-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.bt-attention-kind,.bt-attention-empty{color:var(--bt-ink-2);font-size:12px}
+.bt-attention-empty{padding:7px 8px}
+.bt-sidebar-group{position:relative;margin:4px 2px;padding:4px;border-radius:10px;background:var(--bt-hover)}
+.bt-sidebar-group[data-dragging]{opacity:.5}
+.bt-sidebar-group[data-drop]::after{content:'';position:absolute;left:6px;right:6px;height:3px;border-radius:999px;background:var(--bt-accent);pointer-events:none;z-index:2}
+.bt-sidebar-group[data-drop=before]::after{top:-4px}
+.bt-sidebar-group[data-drop=after]::after{bottom:-4px}
+.bt-sidebar-group-grip{display:flex;align-items:center;justify-content:center;width:24px;height:30px;flex:none;padding:0;border:0;border-radius:6px;background:none;color:var(--bt-ink-2);cursor:grab;touch-action:none}
+.bt-sidebar-group-grip:active{cursor:grabbing}
+.bt-sidebar-group-grip:hover{background:var(--bt-active);color:var(--bt-ink)}
+.bt-sidebar-group-grip:focus-visible{outline:2px solid var(--bt-accent);outline-offset:1px}
+.bt-sidebar-group-grip svg{width:16px;height:16px}
+.bt-sidebar-group-head{display:flex;align-items:center;gap:4px}
+.bt-sidebar-group-toggle{display:flex;align-items:center;gap:8px;min-width:0;flex:1;border:0;background:none;color:var(--bt-ink);font:inherit;text-align:left;padding:8px;cursor:pointer}
+.bt-sidebar-group-status{display:flex;align-items:center;gap:5px;margin-left:auto;flex:none}
+.bt-group-status{font-size:11px;font-weight:600;line-height:1;white-space:nowrap}
+.bt-group-attention{color:color-mix(in srgb,var(--bt-star) 45%,var(--bt-ink))}
+.bt-group-unread{color:color-mix(in srgb,var(--bt-accent) 55%,var(--bt-ink))}
+.bt-group-working{color:color-mix(in srgb,var(--bt-green) 45%,var(--bt-ink))}
+.bt-sidebar-group-toggle strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.bt-sidebar-group-options{position:relative;flex:none}
+.bt-sidebar-group-options summary{cursor:pointer;list-style:none;padding:4px 8px;border-radius:6px;color:var(--bt-ink-2)}
+.bt-sidebar-group-options summary:hover{background:var(--bt-active)}
+.bt-sidebar-group-options summary::-webkit-details-marker{display:none}
+.bt-sidebar-group-menu{position:absolute;right:0;top:100%;z-index:45;min-width:170px;padding:6px;display:flex;flex-direction:column;background:var(--bt-main);border:1px solid var(--bt-line-2);border-radius:10px;box-shadow:0 8px 20px -4px rgba(0,0,0,.18)}
+.bt-sidebar-group-menu button{border:0;background:none;text-align:left;color:var(--bt-ink);font:inherit;font-size:12px;padding:7px;border-radius:6px;cursor:pointer}
+.bt-sidebar-group-menu button:hover{background:var(--bt-hover)}
+.bt-sidebar-group-menu span,.bt-sidebar-group-count{font-size:12px;color:var(--bt-ink-2);padding:4px 8px}
+.bt-group-picker{padding:6px 8px 8px}
+.bt-group-picker-title{font-size:12px;font-weight:600;margin-bottom:6px}
+.bt-group-picker-list{max-height:180px;overflow:auto}
+.bt-group-picker-empty{font-size:12px;color:var(--bt-ink-2);margin:6px 0}
+.bt-group-picker-option{display:flex;align-items:center;gap:6px;min-height:30px;font-size:12px;cursor:pointer}
+.bt-group-picker-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.bt-group-picker-kind{font-size:11px;color:var(--bt-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:45%}
+.bt-group-picker-actions{display:flex;gap:6px;margin-top:8px}
+.bt-group-picker-actions button{border:0;border-radius:6px;background:var(--bt-active);color:var(--bt-ink);font:inherit;font-size:12px;padding:6px 8px;cursor:pointer}
+.bt-group-picker-actions button:disabled{opacity:.5;cursor:default}
+.bt-sidebar-group-form{display:flex;gap:4px;padding:5px;min-width:0}
+.bt-sidebar-group-form input{min-width:0;flex:1;border:1px solid var(--bt-line-2);border-radius:6px;background:var(--bt-main);color:var(--bt-ink);padding:5px;font:inherit}
+.bt-sidebar-group-form button{border:0;border-radius:6px;background:var(--bt-active);color:var(--bt-ink);font:inherit;font-size:12px;cursor:pointer}
+.bt-sidebar-group-add{display:flex;align-items:center;gap:6px;margin:8px 4px;padding:6px;border:0;background:none;color:var(--bt-ink-2);font:inherit;font-size:12px;cursor:pointer}
+.bt-sidebar-group-add svg{width:16px;height:16px}
+.bt-ungrouped{flex:none;margin-top:8px;color:var(--bt-ink-2);font-size:12px}
+
 .bt-confirm{width:260px;max-width:72vw;padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px}
 .bt-confirm-text{margin:0;font-size:13px;line-height:19px;color:var(--bt-ink-2)}
 .bt-confirm-error{margin:0;font-size:12px;line-height:17px;color:var(--bt-danger);overflow-wrap:anywhere}
@@ -16239,7 +16676,7 @@ function entrySummary(entry) {
   if (entry.source === "turn") return failureLabel(entry.code, entry.text);
   return entry.text;
 }
-var SOURCES = { turn: "Model call", host: "DS Bot", api: "DS Bot", browser: "This window" };
+var SOURCES = { turn: "Model call", host: "DS Bot Next", api: "DS Bot Next", browser: "This window" };
 function issueWindow() {
   if (window.dshDesktop !== void 0) return { go: (url) => {
     window.open(url, "_blank");
@@ -16277,16 +16714,14 @@ function FeedbackPage({ actions, run: run2, Section, Row: Row3 }) {
   const openIssue = () => {
     const target = issueWindow();
     run2(fetchReport().then(async (next) => {
-      const copied = await copy(next.markdown);
-      const { url, inline } = issueUrl(next.issuesUrl, { what, diagnostics: next.markdown });
+      const url = issueUrl(next.issuesUrl);
       if (target.go(url)) {
         setIssueLink(null);
-        setNote(inline ? t("Opened a new GitHub issue with the diagnostics filled in. Check it before you submit.") : copied ? t("Opened a new GitHub issue. The diagnostics are long, so they are on the clipboard: paste them into the issue.") : t("Opened a new GitHub issue. Copy the diagnostics below into it."));
+        setNote(t("Opened a blank GitHub issue. Copy only the details you want to share."));
       } else {
         setIssueLink(url);
         setNote(t("The browser blocked the new window."));
       }
-      if (!inline && !copied) setPreview(true);
     }));
   };
   const downloadLog = () => run2(actions.diagnosticsLog().then((text) => {
@@ -16309,20 +16744,21 @@ function FeedbackPage({ actions, run: run2, Section, Row: Row3 }) {
           "label",
           { className: "bt-set-copy", htmlFor: "bt-fb-what" },
           (0, import_react42.createElement)("span", null, t("What happened?")),
-          (0, import_react42.createElement)("span", { className: "bt-set-hint" }, t("What you did, what you expected, and what happened instead. It goes into the issue."))
+          (0, import_react42.createElement)("span", { className: "bt-set-hint" }, t("What you did, what you expected, and what happened instead. Copy it if you choose to share it."))
         ),
-        (0, import_react42.createElement)("textarea", { id: "bt-fb-what", className: "bt-input bt-input-area", value: what, maxLength: WHAT_MAX, placeholder: t("For example: I asked Writer in the group chat and it showed an error."), onChange: (event) => setWhat(event.target.value) })
+        (0, import_react42.createElement)("textarea", { id: "bt-fb-what", className: "bt-input bt-input-area", value: what, maxLength: WHAT_MAX, placeholder: t("For example: I asked Writer in the group chat and it showed an error."), onChange: (event) => setWhat(event.target.value) }),
+        (0, import_react42.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", disabled: !what.trim(), onClick: () => run2(copy(what).then((copied) => setNote(copied ? t("Copied the description.") : t("Could not copy. Select the text and copy it.")))) }, t("Copy description"))
       ),
       (0, import_react42.createElement)(
         Row3,
-        { label: t("Diagnostics"), hint: t("Versions, system, models, and the latest errors. Saved keys, tokens, and your home folder are hidden.") },
+        { label: t("Diagnostics"), hint: t("Versions, system, models, and recent errors. Keys and paths are filtered; review before sharing.") },
         (0, import_react42.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: () => setPreview(!preview), "aria-expanded": preview }, preview ? t("Hide") : t("Show")),
         (0, import_react42.createElement)("button", { type: "button", className: "bt-soft bt-soft-sm", onClick: copyReport }, t("Copy"))
       ),
       preview ? (0, import_react42.createElement)("div", { className: "bt-set-row bt-fb-preview" }, (0, import_react42.createElement)("pre", { tabIndex: 0, "aria-label": t("Diagnostics") }, report?.markdown || t("Loading…"))) : null,
       (0, import_react42.createElement)(
         Row3,
-        { label: t("GitHub issue"), hint: t("Opens a new issue in the DS Bot repository with all of this filled in. Nothing is sent until you submit it there.") },
+        { label: t("GitHub issue"), hint: t("Opens a blank issue in DS Bot Next. Descriptions and diagnostics are not sent automatically.") },
         (0, import_react42.createElement)("button", { type: "button", className: "bt-fb-primary", onClick: openIssue }, t("Report on GitHub"))
       )
     ),
@@ -16335,7 +16771,7 @@ function FeedbackPage({ actions, run: run2, Section, Row: Row3 }) {
     (0, import_react42.createElement)(
       Section,
       { key: "errors", title: report ? t("Recent errors · {count}", { count: total }) : t("Recent errors") },
-      shown.length === 0 ? (0, import_react42.createElement)(Row3, { label: t("No errors recorded."), hint: t("Failed model calls and DS Bot problems show here, newest first.") }) : shown.map((entry, index) => (0, import_react42.createElement)(
+      shown.length === 0 ? (0, import_react42.createElement)(Row3, { label: t("No errors recorded."), hint: t("Failed model calls and DS Bot Next problems show here, newest first.") }) : shown.map((entry, index) => (0, import_react42.createElement)(
         "div",
         { key: `${entry.time}-${index}`, className: "bt-set-row bt-fb-entry", title: entry.text },
         (0, import_react42.createElement)("span", { className: "bt-fb-dot", "data-level": entry.level, "aria-hidden": true }),
@@ -16343,7 +16779,7 @@ function FeedbackPage({ actions, run: run2, Section, Row: Row3 }) {
           "div",
           { className: "bt-set-copy" },
           (0, import_react42.createElement)("span", { className: "bt-fb-text" }, entrySummary(entry)),
-          (0, import_react42.createElement)("span", { className: "bt-set-hint" }, [whenText(entry.time), entry.bot, entry.where, t(SOURCES[entry.source] ?? "DS Bot")].filter(Boolean).join(" · "))
+          (0, import_react42.createElement)("span", { className: "bt-set-hint" }, [whenText(entry.time), entry.bot, entry.where, t(SOURCES[entry.source] ?? "DS Bot Next")].filter(Boolean).join(" · "))
         ),
         entry.code ? (0, import_react42.createElement)("span", { className: "bt-tag bt-fb-code" }, entry.status ? `${entry.code} ${entry.status}` : entry.code) : null
       )),
@@ -16415,12 +16851,12 @@ var import_react43 = require("react");
 var CHEER_MS = 1800;
 var starCount = (count) => new Intl.NumberFormat(dateLocale(), { notation: "compact", maximumFractionDigits: 1 }).format(count);
 function botHint(update) {
-  if (update.phase === "installing") return t("Updating DS Bot…");
-  if (update.phase === "installed") return t("Restart DSH to start using DS Bot {version}.", { version: update.installed ?? update.latest });
-  if (update.phase === "updated") return t("DS Bot {version} is installed.", { version: update.installed ?? update.latest });
+  if (update.phase === "installing") return t("Updating DS Bot Next…");
+  if (update.phase === "installed") return t("Restart DSH to start using DS Bot Next {version}.", { version: update.installed ?? update.latest });
+  if (update.phase === "updated") return t("DS Bot Next {version} is installed.", { version: update.installed ?? update.latest });
   if (update.phase === "failed") return t("The update did not finish: {reason}", { reason: hostText(update.error ?? "") });
-  if (update.available) return t("DS Bot {version} is available", { version: update.latest });
-  if (update.source === "app") return t("Updates come with the DS Bot app.");
+  if (update.available) return t("DS Bot Next {version} is available", { version: update.latest });
+  if (update.source === "app") return t("Updates come with the DeepSeek Bot app.");
   if (update.enabled === false) return t("Update checks are off.");
   if (update.source === "path") return t("Installed from a local folder; update it there.");
   if (!update.checkedAt) return null;
@@ -16452,7 +16888,7 @@ function dshHint(dsh, shown) {
   if (dsh.phase === "installing") return t("Updating DSH…");
   if (dsh.phase === "installed") return t("Restart DSH to start using DSH {version}.", { version: dsh.installed ?? dsh.verified });
   if (dsh.phase === "failed") return t("The update did not finish: {reason}", { reason: hostText(dsh.error ?? "") });
-  if (dsh.available === false && dsh.blockedBy) return t("Update DS Bot {version} first.", { version: dsh.blockedBy });
+  if (dsh.available === false && dsh.blockedBy) return t("Update DS Bot Next {version} first.", { version: dsh.blockedBy });
   if (shown) return t("DSH {version} is available", { version: dsh.verified });
   return t("Version {version}", { version: dsh.current });
 }
@@ -16514,7 +16950,7 @@ function AboutPage({ useUpdate, actions, run: run2, Section, Row: Row3 }) {
       (0, import_react43.createElement)(
         "div",
         { className: "bt-about-copy" },
-        (0, import_react43.createElement)("span", { className: "bt-about-name" }, "DS Bot"),
+        (0, import_react43.createElement)("span", { className: "bt-about-name" }, "DS Bot Next"),
         update.current ? (0, import_react43.createElement)("span", { className: "bt-about-version" }, t("Version {version}", { version: update.current })) : null
       ),
       repo ? (0, import_react43.createElement)(
@@ -16524,19 +16960,25 @@ function AboutPage({ useUpdate, actions, run: run2, Section, Row: Row3 }) {
           href: repo,
           target: "_blank",
           rel: "noopener noreferrer",
-          title: t("Star DS Bot on GitHub"),
-          "aria-label": stars === null ? t("Star DS Bot on GitHub") : `${t("Star DS Bot on GitHub")} · ${t("{count} stars", { count: stars })}`
+          title: t("Star DS Bot Next on GitHub"),
+          "aria-label": stars === null ? t("Star DS Bot Next on GitHub") : `${t("Star DS Bot Next on GitHub")} · ${t("{count} stars", { count: stars })}`
         },
         (0, import_react43.createElement)("span", { className: "bt-star-main" }, (0, import_react43.createElement)("span", { className: "bt-star-icon" }, (0, import_react43.createElement)(StarLineIcon)), "Star"),
         stars === null ? null : (0, import_react43.createElement)("span", { className: "bt-star-count" }, starCount(stars))
       ) : null
     ),
-    repo ? (0, import_react43.createElement)("p", { key: "ask", className: "bt-about-ask" }, t("If DS Bot helps you, a star on GitHub helps more people find it.")) : null,
+    repo ? (0, import_react43.createElement)("p", { key: "ask", className: "bt-about-ask" }, t("If DS Bot Next helps you, a star on GitHub helps more people find it.")) : null,
     (0, import_react43.createElement)(
       Section,
       { key: "updates", title: t("Updates") },
-      (0, import_react43.createElement)(Row3, { label: "DS Bot", hint: ownRow?.hint ?? botHint(update) }, botControl, update.available && update.notesUrl ? (0, import_react43.createElement)("a", linkProps(update.notesUrl), t("What's new")) : null),
+      (0, import_react43.createElement)(Row3, { label: "DS Bot Next", hint: ownRow?.hint ?? botHint(update) }, botControl, update.available && update.notesUrl ? (0, import_react43.createElement)("a", linkProps(update.notesUrl), t("What's new")) : null),
       dsh?.current ? (0, import_react43.createElement)(Row3, { label: "DeepSeek Harness", hint: dshHint(dsh, dshShown) }, dshControl) : null
+    ),
+    (0, import_react43.createElement)(
+      Section,
+      { key: "credits", title: t("Project origin and license") },
+      (0, import_react43.createElement)(Row3, { label: t("Based on DS Bot"), hint: t("DS Bot by Fei2411 and contributors · Apache License 2.0") }, (0, import_react43.createElement)("a", linkProps("https://github.com/Fei2411/DS-Bot"), t("Original project"))),
+      (0, import_react43.createElement)(Row3, { label: t("License and notices"), hint: t("Apache License 2.0 and third-party notices") }, (0, import_react43.createElement)("a", linkProps("https://github.com/imakeit94-dev/DS-Bot-Next/blob/main/LICENSE"), t("License")), (0, import_react43.createElement)("a", linkProps("https://github.com/imakeit94-dev/DS-Bot-Next/blob/main/NOTICE"), t("Notices")))
     ),
     (0, import_react43.createElement)(
       Section,
@@ -16855,7 +17297,7 @@ var PROVIDERS_CSS = `
 // src/client/settings.js
 var import_react45 = require("react");
 var capitalize2 = (word) => word[0].toUpperCase() + word.slice(1);
-var SETTINGS_PAGES = [["general", "General"], ["models", "Models"], ["bots", "Bots"], ["groups", "Group chats"], ["connectors", "Connectors"], ["capabilities", "Capabilities"], ["browser", "Browser"], ["schedules", "Scheduled tasks"], ["usage", "Usage"], ["secrets", "Secrets"], ["feedback", "Feedback"], ["about", "About DS Bot"]];
+var SETTINGS_PAGES = [["general", "General"], ["models", "Models"], ["bots", "Bots"], ["groups", "Group chats"], ["connectors", "Connectors"], ["capabilities", "Capabilities"], ["browser", "Browser"], ["schedules", "Scheduled tasks"], ["usage", "Usage"], ["secrets", "Secrets"], ["feedback", "Feedback"], ["about", "About DS Bot Next"]];
 var PAGE_ICONS = { ...SETTINGS_ICONS, models: SlidersIcon, connectors: ConnectorIcon, capabilities: PlugIcon, browser: ConnectorIcon, schedules: ClockIcon, secrets: KeyIcon, feedback: FeedbackIcon, about: InfoIcon };
 function SetSection({ title, className = "", children }) {
   return (0, import_react45.createElement)("section", { className: `bt-set-section ${className}`.trim() }, (0, import_react45.createElement)("h3", null, title), (0, import_react45.createElement)("div", { className: "bt-set-card" }, children));
@@ -17175,7 +17617,7 @@ function SettingsDialog({ page, id, roster, actions, useUpdate, leaving = false 
     (0, import_react45.createElement)("div", { className: "bt-scrim", onMouseDown: close }),
     (0, import_react45.createElement)(
       "div",
-      { className: "bt-settings", role: "dialog", "aria-modal": true, "aria-label": t("DS Bot settings") },
+      { className: "bt-settings", role: "dialog", "aria-modal": true, "aria-label": t("DS Bot Next settings") },
       (0, import_react45.createElement)(
         "nav",
         { ref: nav.box, className: "bt-settings-nav", "aria-label": t("Settings pages") },
@@ -17263,7 +17705,13 @@ function ContextMenu({ menu, roster, actions, leaving = false }) {
   const isMainBot = isMainOf(roster, menu.id);
   const isTile = roster.mainBotId === menu.id;
   const mainCount = (roster.mainBotIds ?? []).length;
+  const sidebarGroups = roster.prefs?.sidebarGroups ?? [];
+  const currentGroup = sidebarGroups.find((group) => group.members.includes(menu.id));
   const groups = [
+    ...sidebarGroups.length ? [[
+      ...sidebarGroups.filter((group) => group.id !== currentGroup?.id).map((group) => [t("Move to {name}", { name: group.name }), GearIcon, () => actions.sidebarGroup({ action: "move-entry", entryId: menu.id, groupId: group.id })]),
+      currentGroup ? [t("Move to Ungrouped"), GearIcon, () => actions.sidebarGroup({ action: "move-entry", entryId: menu.id, groupId: null })] : null
+    ]] : [],
     [
       isTile ? null : [entry.pinned ? t("Unpin") : t("Pin"), PinIcon, () => actions.setFlags(menu.id, { pinned: !entry.pinned })],
       [t("Mark as Unread"), UnreadIcon, () => actions.markUnread(menu.id)]

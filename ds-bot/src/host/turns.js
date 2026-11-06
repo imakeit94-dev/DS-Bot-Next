@@ -1,3 +1,4 @@
+import { recordAttentionFailure } from './attention-failures.js'
 // Turns: what each Bot Session is doing now (for its mascot), which turns another Bot
 // triggered, the waiters and inboxes of group rounds, and routing a finished turn's reply.
 //
@@ -840,7 +841,14 @@ export function install(rt) {
         }
         const reason = event.data?.reason
         const failure = reason?.kind === 'error' && !switched ? turnFailure(reason.error) : undefined
-        if (failure !== undefined) noteTurnFailure(id, failure)
+        if (failure !== undefined) {
+          noteTurnFailure(id, failure)
+          const owner = rt.groupOwners.get(id)
+          const targetId = owner?.roomId ?? rt.chatOwners.get(id) ?? rt.roomOf(id)?.id
+          if (!rt.readOnly?.() && recordAttentionFailure(state, targetId, owner?.botId)) {
+            void rt.save().catch(error => rt.warn('ds-bot: could not save failure notice: %s', error))
+          }
+        }
         // A route that is not a model endpoint refuses every generation; the failed
         // Session's own request names it, so it is refused everywhere from now on.
         if (failure?.code === 'HOSTED_ENGINE_ROUTE') {

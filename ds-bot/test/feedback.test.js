@@ -9,7 +9,7 @@ const bundle = await build({
   bundle: true, format: 'cjs', platform: 'node', write: false,
   external: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
 })
-const ISSUES = 'https://github.com/Fei2411/DS-Bot/issues/new'
+const ISSUES = 'https://github.com/imakeit94-dev/DS-Bot-Next/issues/new'
 
 // Settings → Feedback in a window whose `open` is `open`, with every state change kept.
 function page(window) {
@@ -63,7 +63,7 @@ test('on the Desktop, "Report on GitHub" hands the issue address to the system b
   assert.equal(opened.length, 1)
   assert.ok(opened[0].startsWith(`${ISSUES}?template=bug.yml`))
   assert.equal(notes.some(note => /blocked the new window/.test(note)), false)
-  assert.ok(notes.includes('Opened a new GitHub issue with the diagnostics filled in. Check it before you submit.'))
+  assert.ok(notes.includes('Opened a blank GitHub issue. Copy only the details you want to share.'))
 })
 
 test('in a browser, the window reserved in the click gets the issue address', async () => {
@@ -73,7 +73,7 @@ test('in a browser, the window reserved in the click gets the issue address', as
   await report()
   assert.equal(reserved.opener, null)
   assert.ok(reserved.location.href.startsWith(`${ISSUES}?template=bug.yml`))
-  assert.ok(notes.includes('Opened a new GitHub issue with the diagnostics filled in. Check it before you submit.'))
+  assert.ok(notes.includes('Opened a blank GitHub issue. Copy only the details you want to share.'))
 })
 
 test('in a browser that blocks the window, the page offers the link instead', async () => {
