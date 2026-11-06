@@ -49,6 +49,9 @@ export async function listDeliverables(rt, groupId = null) {
     }
   }
   await Promise.all(Array.from({ length: Math.min(4, sources.length) }, () => worker()))
-  items.sort((a, b) => (b.time ?? 0) - (a.time ?? 0))
+  // Sessions are read concurrently, so the insertion order of equal timestamps is
+  // whichever read finished first. Break ties on the id, which carries the Session,
+  // event seq and file index, so the list and the 200-item cut are stable.
+  items.sort((a, b) => (b.time ?? 0) - (a.time ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   return { items: items.slice(0, LIMIT), truncated: items.length > LIMIT, unavailable }
 }

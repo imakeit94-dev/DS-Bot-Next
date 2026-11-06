@@ -29,3 +29,53 @@ test('inherited, malformed and unreadable records are not silently reported as a
   assert.equal(result.unavailable, 1)
   await assert.rejects(listDeliverables({ ...rt, ctx: { get: () => undefined } }, null), /unavailable/)
 })
+
+// Read completion order is not data: Sessions are read concurrently, so equal timestamps
+// must come out in one fixed order whatever order the reads finish in.
+const controlled = records => {
+  const pending = new Map()
+  const state = { prefs: { sidebarGroups: [] }, bots: { A: { id: 'A', name: 'A' }, B: { id: 'B', name: 'B' } }, rooms: {} }
+  const rt = { state, partsOf: id => [{ sessionId: id === 'A' ? 'sA' : 'sB' }], ctx: { get: () => ({ readSession: async id => { await new Promise(resolve => pending.set(id, resolve)); return { events: records[id], inheritedEventCount: 0 } } }) } }
+  const run = async order => {
+    const promise = listDeliverables(rt, null)
+    await new Promise(resolve => setImmediate(resolve))
+    for (const id of order) pending.get(id)()
+    const result = await promise
+    return { ids: result.items.map(item => item.id), truncated: result.truncated }
+  }
+  return { run }
+}
+
+const presented = (seq, time, callId = 'call') => ({ seq, type: 'deliverables/presented', time, data: { turn: 1, callId, files: [{ path: `/f${seq}.md` }] } })
+
+test('equal timestamps across conversations keep one order whatever read finishes first', async () => {
+  const records = { sA: [presented(1, 7)], sB: [presented(1, 7)] }
+  const { run } = controlled(records)
+  const ab = await run(['sA', 'sB'])
+  const ba = await run(['sB', 'sA'])
+  assert.deepEqual(ab.ids, ba.ids)
+  assert.deepEqual(ab.ids, ['sA:1:0', 'sB:1:0'])
+  assert.equal(ab.truncated, false)
+})
+
+test('the same seq in two conversations stays two distinct deliverables', async () => {
+  const records = { sA: [presented(3, 9, 'same')], sB: [presented(3, 9, 'same')] }
+  const { run } = controlled(records)
+  const result = await run(['sB', 'sA'])
+  assert.equal(result.ids.length, 2)
+  assert.equal(new Set(result.ids).size, 2)
+})
+
+test('the 200-item cut drops the same deliverable whatever read finishes first', async () => {
+  const many = n => Array.from({ length: n }, (_, index) => presented(index + 1, 11))
+  const { run } = controlled({ sA: many(100), sB: many(101) })
+  const ab = await run(['sA', 'sB'])
+  const ba = await run(['sB', 'sA'])
+  assert.equal(ab.truncated, true)
+  assert.equal(ab.ids.length, 200)
+  assert.deepEqual(ab.ids, ba.ids)
+  const all = new Set([...many(100).map((_, index) => `sA:${index + 1}:0`), ...many(101).map((_, index) => `sB:${index + 1}:0`)])
+  const dropped = [...all].filter(id => !ab.ids.includes(id))
+  assert.equal(dropped.length, 1)
+  assert.equal(ba.ids.includes(dropped[0]), false)
+})
