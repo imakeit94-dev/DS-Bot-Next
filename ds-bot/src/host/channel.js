@@ -1,5 +1,8 @@
 // Client channel: the team view the browser renders, and the POST /api/bot endpoints.
 import { randomUUID } from 'node:crypto'
+import { changeSidebarGroups } from './sidebar-groups.js'
+import { listDeliverables } from './deliverables.js'
+import { clearAttentionFailure } from './attention-failures.js'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { install as installBtw } from './btw.js'
 import { install as installSide } from './side.js'
@@ -57,6 +60,7 @@ export function install(rt) {
     privateArchives: rt.archivesView(),
     exchangeTurns: state.exchangeTurns,
     questions: state.questions,
+    attentionFailures: (Array.isArray(state.attentionFailures) ? state.attentionFailures : []).filter(item => state.bots[item.targetId] || state.rooms[item.targetId]),
     views: state.views ?? {},
     // Aside answers of each Bot's current part, newest first. Not part of the
     // model-visible history; earlier parts send their cards on their own pages.
@@ -114,7 +118,7 @@ export function install(rt) {
   }
   // What a host that only reads the team may still answer.
   // Updates change the dsh profile, not the team, so a reading host may run them too.
-  const READS = new Set(['state', 'models', 'efforts', 'providers', 'provider-models', 'earlier', 'chat', 'run-stats', 'room-progress', 'exchange', 'exchange-text', 'file-text', 'usage', 'schedules', 'memory-view', 'browser-wait', 'browser-result', 'diagnostics', 'diagnostics-log', 'diagnostics-clear', 'update-check', 'update-install', 'dsh-update-install', 'repo-stars', 'approval-answer', 'thinking', 'avatar-library'])
+  const READS = new Set(['deliverables', 'state', 'models', 'efforts', 'providers', 'provider-models', 'earlier', 'chat', 'run-stats', 'room-progress', 'exchange', 'exchange-text', 'file-text', 'usage', 'schedules', 'memory-view', 'browser-wait', 'browser-result', 'diagnostics', 'diagnostics-log', 'diagnostics-clear', 'update-check', 'update-install', 'dsh-update-install', 'repo-stars', 'approval-answer', 'thinking', 'avatar-library'])
 
   function setPrefs(body) {
     if (body.theme !== undefined) {
@@ -226,6 +230,9 @@ export function install(rt) {
           const read = await rt.fileText(body.file)
           return read === undefined ? fail('This file cannot be read here', 'bot/unavailable') : ok(read)
         }
+        case 'deliverables':
+          await rt.load()
+          return ok(await listDeliverables(rt, body.groupId === null || body.groupId === undefined ? null : String(body.groupId)))
         case 'earlier':
           await rt.load()
           return ok(await rt.earlierPage(String(body.sessionId ?? ''), body.cursor ?? undefined))
@@ -333,6 +340,15 @@ export function install(rt) {
         case 'remove-agent':
           await rt.load()
           await rt.removeAgent(body.agentId)
+          return ok(view())
+        case 'attention-failure-clear':
+          await rt.load()
+          if (clearAttentionFailure(state, body.id)) await rt.save()
+          return ok(null)
+        case 'sidebar-group':
+          await rt.load()
+          changeSidebarGroups(state, body)
+          await rt.save()
           return ok(view())
         case 'set-flags':
           await rt.load()

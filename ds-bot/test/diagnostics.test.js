@@ -234,6 +234,23 @@ function turnsHost() {
 
 const failed = { kind: 'error', error: { code: 'SERVER', message: 'upstream busy', status: 503 } }
 
+test('failed turn records the owning Bot or group, without clearing it on a later success', () => {
+  const { rt, emit } = turnsHost()
+  rt.state.bots = rt.bots
+  rt.state.rooms = { room: { id: 'room', name: 'Team' } }
+  rt.chatOwners.set('b', 'b')
+  emit('b', 'turn/start', { turn: 1 })
+  emit('b', 'turn/end', { turn: 1, reason: failed })
+  assert.equal(rt.state.attentionFailures[0].targetId, 'b')
+  emit('b', 'turn/start', { turn: 2 })
+  emit('b', 'turn/end', { turn: 2, reason: { kind: 'completed' } })
+  assert.equal(rt.state.attentionFailures.length, 1)
+  rt.groupOwners.set('group-b', { roomId: 'room', botId: 'b' })
+  emit('group-b', 'turn/start', { turn: 3 })
+  emit('group-b', 'turn/end', { turn: 3, reason: failed })
+  assert.deepEqual(rt.state.attentionFailures.map(item => [item.targetId, item.botId]), [['b', undefined], ['room', 'b']])
+})
+
 test('a failed reply to message_bot tells the sender instead of leaving it waiting', () => {
   const { emit, delivered, noted } = turnsHost()
   emit('b', 'turn/start', { turn: 1 })
@@ -279,29 +296,12 @@ test('a turn refused for not being a model endpoint refuses that route', () => {
   assert.equal(calls.length, 1)
 })
 
-test('issueUrl fills the issue form, keeps the versions when the errors are too long, and falls back to the clipboard', async () => {
+test('issueUrl opens a blank form without placing user text or diagnostics in its address', async () => {
   const { issueUrl } = await import('../src/client/diagnostics.js')
-  const base = 'https://github.com/Fei2411/DS-Bot/issues/new'
-  const short = issueUrl(base, { what: 'Writer failed\nin the group', diagnostics: '| DS Bot | 0.1.0 |' })
-  assert.equal(short.inline, true)
-  const params = new URL(short.url).searchParams
-  assert.equal(params.get('template'), 'bug.yml')
-  assert.equal(params.get('title'), 'Writer failed')
-  assert.equal(params.get('what'), 'Writer failed\nin the group')
-  assert.equal(params.get('diagnostics'), '| DS Bot | 0.1.0 |')
-  const long = issueUrl(base, { diagnostics: '错误'.repeat(2000) })
-  assert.equal(long.inline, false)
-  assert.ok(long.url.length < 7000)
-  assert.match(new URL(long.url).searchParams.get('diagnostics'), /clipboard/)
-  assert.equal(new URL(long.url).searchParams.has('title'), false)
-  const table = '| | |\n|---|---|\n| DS Bot | 0.1.2 |\n| DSH | 0.2.0 |'
-  const errors = issueUrl(base, { what: 'Writer failed', diagnostics: `${table}\n\nRecent host errors:\n${'错误'.repeat(2000)}` })
-  assert.equal(errors.inline, false)
-  assert.ok(errors.url.length < 7000)
-  const kept = new URL(errors.url).searchParams.get('diagnostics')
-  assert.ok(kept.startsWith(`${table}\n\n`))
-  assert.match(kept, /clipboard: paste them below this line/)
-  assert.doesNotMatch(kept, /错误/)
+  const url = issueUrl('https://github.com/imakeit94-dev/DS-Bot-Next/issues/new', { what: 'private example', diagnostics: 'private details' })
+  assert.equal(new URL(url).searchParams.get('template'), 'bug.yml')
+  assert.doesNotMatch(url, /private/)
+  assert.equal([...new URL(url).searchParams].length, 1)
 })
 
 test('a browser error is noted once, repeats are counted, and clear empties the list', async () => {

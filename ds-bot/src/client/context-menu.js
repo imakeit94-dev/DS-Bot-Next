@@ -29,7 +29,13 @@ export function ContextMenu({ menu, roster, actions, leaving = false }) {
   const isMainBot = isMainOf(roster, menu.id)
   const isTile = roster.mainBotId === menu.id
   const mainCount = (roster.mainBotIds ?? []).length
+  const sidebarGroups = roster.prefs?.sidebarGroups ?? []
+  const currentGroup = sidebarGroups.find(group => group.members.includes(menu.id))
   const groups = [
+    ...(sidebarGroups.length ? [[
+      ...sidebarGroups.filter(group => group.id !== currentGroup?.id).map(group => [t('Move to {name}', { name: group.name }), GearIcon, () => actions.sidebarGroup({ action: 'move-entry', entryId: menu.id, groupId: group.id })]),
+      currentGroup ? [t('Move to Ungrouped'), GearIcon, () => actions.sidebarGroup({ action: 'move-entry', entryId: menu.id, groupId: null })] : null,
+    ]] : []),
     [
       isTile ? null : [entry.pinned ? t('Unpin') : t('Pin'), PinIcon, () => actions.setFlags(menu.id, { pinned: !entry.pinned })],
       [t('Mark as Unread'), UnreadIcon, () => actions.markUnread(menu.id)],
