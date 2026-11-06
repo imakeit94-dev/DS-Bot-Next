@@ -14,6 +14,12 @@ export function deliverableSources(rt, groupId) {
   }
   for (const room of Object.values(state.rooms)) {
     if (selected && !selected.has(room.id)) continue
+    // The group's own Session (and its earlier parts) is where the group itself presents
+    // deliverables; member Sessions live under `room.sessions` and `room.segments`.
+    const own = (typeof rt.sessionOfRoom === 'function' ? rt.sessionOfRoom(room) : undefined) ?? room.sessionId ?? room.id
+    for (const sessionId of [own, ...(room.parts ?? []).map(segment => segment.sessionId)].filter(Boolean)) {
+      sources.set(sessionId, { sessionId, targetId: room.id, sourceName: room.name })
+    }
     const ids = new Set([...Object.keys(room.sessions ?? {}), ...Object.keys(room.segments ?? {})])
     for (const botId of ids) {
       const previous = (room.segments?.[botId] ?? []).map(segment => segment.sessionId)

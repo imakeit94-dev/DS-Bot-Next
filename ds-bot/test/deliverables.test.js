@@ -3,25 +3,33 @@ import { test } from 'node:test'
 import { deliverableSources, listDeliverables } from '../src/host/deliverables.js'
 
 const fixture = () => {
-  const state = { prefs: { sidebarGroups: [{ id: 'g', members: ['bot', 'room'] }, { id: 'other', members: ['outside'] }] }, bots: { bot: { id: 'bot', name: 'Writer' }, outside: { id: 'outside', name: 'Other' } }, rooms: { room: { id: 'room', name: 'Team', sessions: { bot: 'hidden' }, segments: { bot: [{ sessionId: 'old-hidden' }] } } } }
+  const state = { prefs: { sidebarGroups: [{ id: 'g', members: ['bot', 'room'] }, { id: 'other', members: ['outside'] }] }, bots: { bot: { id: 'bot', name: 'Writer' }, outside: { id: 'outside', name: 'Other' } }, rooms: { room: { id: 'room', name: 'Team', sessionId: 'room-own', parts: [{ sessionId: 'room-old' }], sessions: { bot: 'hidden' }, segments: { bot: [{ sessionId: 'old-hidden' }] } } } }
   const calls = []
-  const records = { own: [{ seq: 1, type: 'deliverables/presented', time: 4, data: { turn: 1, callId: 'x', files: [{ path: '/local/report.md' }] } }], hidden: [{ seq: 2, type: 'deliverables/presented', time: 5, data: { turn: 1, callId: 'y', files: [{ path: 'C:\\tmp\\image.png' }] } }], 'old-hidden': [], outside: [] }
-  const rt = { state, partsOf: id => [{ sessionId: id === 'bot' ? 'own' : 'outside' }], ctx: { get: () => ({ readSession: async id => { calls.push(id); return { events: records[id], inheritedEventCount: 0 } } }) } }
+  const records = { own: [{ seq: 1, type: 'deliverables/presented', time: 4, data: { turn: 1, callId: 'x', files: [{ path: '/local/report.md' }] } }], hidden: [{ seq: 2, type: 'deliverables/presented', time: 5, data: { turn: 1, callId: 'y', files: [{ path: 'C:\\tmp\\image.png' }] } }], 'old-hidden': [], 'room-own': [{ seq: 3, type: 'deliverables/presented', time: 6, data: { turn: 1, callId: 'z', files: [{ path: '/local/group.md' }] } }], 'room-old': [], outside: [] }
+  const rt = { state, partsOf: id => [{ sessionId: id === 'bot' ? 'own' : 'outside' }], sessionOfRoom: room => room.sessionId ?? room.id, ctx: { get: () => ({ readSession: async id => { calls.push(id); return { events: records[id] ?? [], inheritedEventCount: 0 } } }) } }
   return { rt, calls, records }
 }
 
 test('results follow assigned Bot and group conversations, newest first, without returning paths', async () => {
   const { rt, calls } = fixture()
   const result = await listDeliverables(rt, 'g')
-  assert.deepEqual(result.items.map(({ name, targetId }) => [name, targetId]), [['image.png', 'room'], ['report.md', 'bot']])
+  assert.deepEqual(result.items.map(({ name, targetId }) => [name, targetId]), [['group.md', 'room'], ['image.png', 'room'], ['report.md', 'bot']])
   assert.equal(result.items.some(item => Object.hasOwn(item, 'path')), false)
-  assert.deepEqual(calls.sort(), ['hidden', 'old-hidden', 'own'])
+  assert.deepEqual(calls.sort(), ['hidden', 'old-hidden', 'own', 'room-old', 'room-own'])
   assert.equal(result.unavailable, 0)
   assert.throws(() => deliverableSources(rt, 'missing'))
 })
 
+test('a group\'s own conversation and its earlier parts are listed under the group', async () => {
+  const { rt } = fixture()
+  const sources = deliverableSources(rt, 'g').filter(source => source.targetId === 'room' && source.sessionId.startsWith('room-'))
+  assert.deepEqual(sources.map(source => source.sessionId).sort(), ['room-old', 'room-own'])
+  assert.equal(sources.every(source => source.sourceName === 'Team'), true)
+})
+
 test('inherited, malformed and unreadable records are not silently reported as an empty success', async () => {
   const { rt, records } = fixture()
+  records['room-own'] = []
   records.own.push({ seq: 2, type: 'deliverables/presented', data: { turn: 1, callId: 'x', files: [{ path: '' }, null] } })
   rt.ctx.get = () => ({ readSession: async id => { if (id === 'hidden') throw Error('unavailable'); return { events: records[id], inheritedEventCount: 2 } } })
   const result = await listDeliverables(rt, 'g')
