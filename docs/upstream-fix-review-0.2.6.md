@@ -30,7 +30,7 @@ Reviewed against upstream v0.2.6 (`5c514ad`) and the Next development baseline `
 
 ## Parallel group engine with Next compatibility
 
-Upstream [#746](https://github.com/Fei2411/DS-Bot/pull/746) and [#727](https://github.com/Fei2411/DS-Bot/pull/727) were integrated for 0.2.6 with a fork-specific compatibility layer that preserved per-group relay limits, counters, paused calls, and Continue. See [the compatibility design](plans/2026-11-03-parallel-groups-compat.md). **This no longer describes 0.2.7:** the integrated `main` follows upstream 0.2.5 and the newer engine, where that setting, the parked queue and Continue are gone and the six-turn idle guard parks the next call until the user writes.
+Upstream [#746](https://github.com/Fei2411/DS-Bot/pull/746) and [#727](https://github.com/Fei2411/DS-Bot/pull/727) were integrated for 0.2.6 with a fork-specific compatibility layer that preserved per-group relay limits, counters, paused calls, and Continue. See [the compatibility design](plans/2026-11-03-parallel-groups-compat.md). **This no longer describes 0.2.7:** the integrated `main` follows upstream 0.2.5 and the newer engine, where that editable setting and Continue are gone, the `room.paused` queue remains and resumes on your next message, and the six-turn idle guard parks the next call until the user writes.
 
 Upstream [#800](https://github.com/Fei2411/DS-Bot/pull/800) disables DSH subagents and workflows for Bots. It is not integrated because that would remove an existing ability contrary to this fork's preservation requirement. Immediate private-chat steering [#728](https://github.com/Fei2411/DS-Bot/pull/728) and reduced remote polling [#766](https://github.com/Fei2411/DS-Bot/pull/766) already belong to the baseline.
 

@@ -1,6 +1,6 @@
 # DS Bot Next 0.2.7
 
-0.2.7 is the first release on this fork's `main`. Two things carry the same version number and are not the same build:
+0.2.7 is the first release that brings the Next maintenance line onto this fork's `main`. Two things carry the same version number and are not the same build:
 
 - The installable package `ds-bot-next-0.2.7.tgz`, built from the maintenance line (`e8e76d0`), contains only the deliverables ordering change below.
 - `main` (this repository's default branch) also integrates that maintenance line with the newer upstream-derived engine. It is source only: no `0.2.7` package has been published from it.
@@ -15,7 +15,7 @@
 ## What the main integration adds on top
 
 - The deliverables list now includes a group's own Session and its earlier parts, where the group itself presents files. Before, only member Sessions under `room.sessions` / `room.segments` were scanned.
-- Group relay behavior follows main's protocol, which came from upstream 0.2.5: there is no per-group relay-limit setting and no Continue button. Bots may relay without limit while they use tools or produce new content. After six consecutive acknowledgement-only turns without a tool call, the next call is parked with a notice in the group until you write. Saved `relayLimit` and `relays` fields from older state are dropped by the existing migration.
+- Group relay behavior follows main's protocol, which came from upstream 0.2.5: there is no per-group relay-limit setting and no Continue button. Bots may relay without limit while they use tools or produce new content. After six consecutive repetitive or acknowledgement-only turns without a tool call, the next call is parked with a notice in the group until you write. Saved `relayLimit` and `relays` fields from older state are dropped by the existing migration.
 - The maintenance line's workgroups, needs-your-attention list, deliverables list, fork identity and selected upstream fixes are present, as the README describes.
 
 ## Known issue, not fixed here

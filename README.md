@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 - **Workgroups:** organize Bots and group chats, collapse or pin groups, drag to reorder them, and move entries in batches.
 - **Needs your attention:** find approvals, questions, and failed runs and open the relevant conversation. Failures stay until you clear them.
 - **Deliverables:** browse explicitly presented files by workgroup and open the source conversation. The list does not read file contents.
-- **Parallel group calls:** members named together can start concurrently. Ordinary messages in everyone mode still go in order. Group relays follow the 0.2.5 protocol: there is no relay-limit setting and no Continue button; after six consecutive acknowledgement-only turns without a tool call, the next call is parked until you write.
+- **Parallel group calls:** members named together can start concurrently. Ordinary messages in everyone mode still go in order. Group relays follow the 0.2.5 protocol: there is no relay-limit setting and no Continue button; after six consecutive repetitive or acknowledgement-only turns without a tool call, the next call is parked until you write.
 - **Selected upstream fixes:** data protection, message reliability, and interface fixes. See the [upstream review](docs/upstream-fix-review-0.2.6.md) for coverage and remaining differences.
 
 Parallel members may see the same prior conversation state; arrange tasks in steps when strict ordering matters.
