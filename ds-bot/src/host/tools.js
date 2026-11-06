@@ -39,6 +39,17 @@ const AVATAR_PARAM = {
 }
 const WORKING_DIRECTORY_TOOL = 'working_directory'
 
+// A host either hands the assembled tools to the middleware, or appends them to
+// the result after the waterfall (host 0.2.2-rc.1). A field the host did not put
+// on the assembly stays off it: filling in an empty list would send the host's
+// own truthy check the wrong way and hide every section or tool it appends.
+export const filterAssembled = (assembled) => {
+  const out = { ...assembled }
+  if (Array.isArray(out.tools)) out.tools = out.tools.filter(tool => !HIDDEN_TOOLS.includes(tool?.name))
+  if (Array.isArray(out.sections)) out.sections = out.sections.filter(section => !HIDDEN_SECTIONS.has(section?.name))
+  return out
+}
+
 export function install(rt) {
   const { ctx, state } = rt
 
@@ -824,12 +835,7 @@ export function install(rt) {
   const filterBotAssembly = (agent, held) => {
     if (held.filtered === true || typeof agent.ctx?.on !== 'function') return
     const dispose = agent.ctx.on('system-prompt/assemble', async (_assembly, _context, next) => {
-      const assembled = await next()
-      return {
-        ...assembled,
-        tools: assembled.tools.filter(tool => !HIDDEN_TOOLS.includes(tool.name)),
-        sections: assembled.sections.filter(section => !HIDDEN_SECTIONS.has(section.name)),
-      }
+      return filterAssembled(await next())
     })
     held.filtered = true
     if (typeof dispose === 'function') held.disposers.push(dispose)
