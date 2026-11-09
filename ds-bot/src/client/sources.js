@@ -55,6 +55,8 @@ export function isAgentSession(roster, cache, sessionId) {
 
 // A request can reuse a call id; question and secret ids belong to separate kinds.
 export const heldCardKey = (kind, requestId) => JSON.stringify([kind, requestId])
+// A running group relay is identified by its Session and tool call id.
+export const groupRelayKey = (sessionId, callId) => JSON.stringify([sessionId, callId])
 
 // Per Session, how many mounted cells draw or hold each card; 0 drops the entry.
 export function countCards(state, sessionId, callIds, delta) {

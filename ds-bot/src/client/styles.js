@@ -960,6 +960,16 @@ body[data-bt-layout=flat] .bt-think{max-width:calc(var(--bt-flat-w) * 100%)}
 .bt-event-whole>span:first-child{margin-right:2px}
 /* One button cannot wrap like separate parts, so a long name is cut to fit the chat. */
 .bt-event-whole>.bt-event-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* One-to-one chat window: a Bot-to-Bot message inside the window as a left bubble. */
+.bt-dm-msg{display:flex;flex-direction:column;gap:4px;margin:10px 0 0;align-items:flex-start}
+.bt-dm-msg:first-child{margin-top:0}
+.bt-dm-name{display:flex;align-items:center;gap:8px;font-size:13px;line-height:22px;font-weight:600;color:var(--bt-ink);margin:0 0 2px}
+.bt-dm-name>.bt-lead{margin:0}
+.bt-dm-time{font-size:12px;font-weight:400;color:var(--bt-ink-2)}
+.bt-dm-fold{display:flex;justify-content:center;margin:2px 0}
+.bt-dm-fold-btn{border:0;background:none;color:var(--bt-ink-2);font:inherit;font-size:12px;line-height:16px;cursor:pointer;padding:4px 8px;border-radius:999px}
+.bt-dm-fold-btn:hover{background:var(--bt-hover)}
+.bt-dm-fold-btn:active{background:var(--bt-active)}
 .bt-time-sep{display:flex;justify-content:center;align-items:center;height:28px;margin:14px 0 8px;font-size:12px;line-height:16px;color:var(--bt-ink-2);white-space:nowrap}
 [class*="_scroll"]>[class*="_column"]::before{content:var(--bt-first-sep,none);display:block;flex:none;height:28px;margin:17px 0 12px;font-size:12px;line-height:28px;text-align:center;color:var(--bt-ink-2);white-space:nowrap}
 .bt-activity{display:flex;align-items:center;gap:10px;margin:8px 0 4px 2px;font-size:14px;color:var(--bt-ink-2)}

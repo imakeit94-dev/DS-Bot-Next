@@ -1,10 +1,12 @@
 import { call } from './api.js'
 import { isHex, inkText, paintCss } from './inks.js'
 import { DEFAULT_MASK, SHAPES, markupCache, maskOf } from './characters.js'
-import { createSource, EMPTY_ROSTER, indexRoster, isAgentSession } from './sources.js'
+import { createSource, EMPTY_ROSTER, indexRoster, isAgentSession, groupRelayKey } from './sources.js'
 import { teamActions } from './team-actions.js'
 import { themeCss, shellTokens, registry, registerShape, registerTheme, allThemes, layoutOf, widthOf, flatWidthOf } from './themes.js'
 import { MENTION_ORIGIN, currentPart } from './text.js'
+import { chatWindow } from './chat-window.js'
+import { projectChatEntries, createChatWindowSource } from './chat-entries.js'
 import { SHELL_CSS, CONVERSATION_CSS, installStyles, installCompiledStyles } from './styles.js'
 import { lookOf } from './mark.js'
 import { TeamSidebar, YouAvatar, AccountLauncher, FooterAccount, BrandMark, BrandName, BotReturn, SIDEBAR_CSS, RETURN_CSS, holdShellShortcuts, openHarnessOnboarding, openHarnessSettings } from './sidebar.js'
@@ -128,6 +130,11 @@ export function apply(ctx) {
   // Edited dock cards keep their component when history arrives. This source
   // holds only request identities and counts, never drafts or secret values.
   const heldCards = createSource({})
+  // Per Session and call id, the visible rows a running group_relay round has:
+  // replies, speaking Bots and the broken-result marker. The same source feeds
+  // GroupReplies and the chat-window projection, so they never disagree.
+  const groupRelays = createSource({})
+  const liveStamp = value => JSON.stringify([value?.replies, value?.speaking, value?.broken === true])
   // Per Session, the first visible time and the end time of each turn the transcript
   // has rendered; time separators compare one turn's end with the next turn's start.
   const turnClock = createSource({})
@@ -589,6 +596,20 @@ export function apply(ctx) {
     },
     clearUnread: id => writeUnread(id, false),
   }
+  actions.groupRelays = groupRelays
+  actions.noteGroupRelay = (sessionId, callId, live) => {
+    const key = groupRelayKey(sessionId, callId)
+    groupRelays.set(state => {
+      if (live === undefined) {
+        if (!(key in state)) return state
+        const next = { ...state }
+        delete next[key]
+        return next
+      }
+      if (state[key] !== undefined && liveStamp(state[key]) === liveStamp(live)) return state
+      return { ...state, [key]: live }
+    })
+  }
   // Without the Desktop bridge these stay undefined, and no browser control renders.
   if (browsers) {
     Object.assign(actions, {
@@ -723,11 +744,61 @@ export function apply(ctx) {
     shownSession: () => Object.values(ctx.sessions.list.getSnapshot().byId ?? {}).find(session => (session?.retainedBy?.mainView ?? 0) > 0)?.id,
     openSession: id => actions.openSession(id),
   }), 'ds-bot: approval notifications')
+  // The one-to-one chat window projection: the last 20 UI entries, with Bot-to-Bot
+  // exchanges folding their out-of-window prefix to one line. Group chats keep their
+  // own flow, so a room session gets no projection (the cells fall back to the old path).
+  const chatWindowSources = new Map()
+  const projectChat = (snapshot, sessionId) => {
+    if (snapshot === undefined) return undefined
+    const state = roster.getSnapshot()
+    const self = state?.byId?.[sessionId]
+    const findBot = nameOrId => state?.byId?.[nameOrId] ?? (state?.bots ?? []).find(bot => bot?.name?.toLowerCase() === String(nameOrId ?? '').toLowerCase())
+    // The draw verdict reads held cards, a pending browser handoff and live group
+    // relay rows. All are sources, so their snapshots are also cache keys below.
+    const held = typeof heldCards === 'undefined' ? undefined : heldCards.getSnapshot()?.[sessionId]
+    const hold = typeof browserHolds === 'undefined' || self === undefined ? undefined : browserHolds.getSnapshot()?.[self.id]
+    const relays = typeof groupRelays === 'undefined' ? undefined : groupRelays.getSnapshot()
+    const canGiveBack = typeof actions === 'undefined' ? false : typeof actions?.browserGiveBack === 'function'
+    return chatWindow(projectChatEntries(snapshot, {
+      sessionId,
+      roster: state,
+      thinking: state?.prefs?.thinking === true,
+      exchangeTurns: state?.exchangeTurns?.[sessionId] ?? [],
+      findBot,
+      heldCards: held,
+      browserHold: hold,
+      groupRelays: relays,
+      canGiveBack,
+    }))
+  }
+  const chatWindowSource = (sessionId) => {
+    // A group chat keeps its own flow: no window projection at all.
+    if (roster.getSnapshot?.()?.roomsById?.[sessionId]) return undefined
+    const cached = chatWindowSources.get(sessionId)
+    if (cached !== undefined) return cached
+    let binding
+    try { binding = ctx.sessions.binding(sessionId) } catch { binding = undefined }
+    if (binding === undefined) return undefined
+    const chat = ctx.uiConversation.binding(binding).target('chat')
+    const extraSources = []
+    if (typeof heldCards !== 'undefined' && heldCards && typeof heldCards.getSnapshot === 'function') extraSources.push(heldCards)
+    if (typeof browserHolds !== 'undefined' && browserHolds && typeof browserHolds.getSnapshot === 'function') extraSources.push(browserHolds)
+    if (typeof groupRelays !== 'undefined' && groupRelays && typeof groupRelays.getSnapshot === 'function') extraSources.push(groupRelays)
+    const source = createChatWindowSource({ chat, roster, sessionId, project: projectChat, sources: extraSources })
+    chatWindowSources.set(sessionId, source)
+    return source
+  }
+  const cellFace = (sessionId) => {
+    const base = face()
+    const window = chatWindowSource(sessionId)
+    return { ...base, hooks: { ...base.hooks, ...(window !== undefined ? { chatWindow: window } : {}) } }
+  }
   const assistantFace = (sessionId) => {
     const binding = ctx.sessions.binding(sessionId)
     if (binding === undefined) throw new Error(`ds-bot: unknown session "${sessionId}"`)
     const chat = ctx.uiConversation.binding(binding).target('chat')
-    return { ...face(), keyedHooks: {
+    const win = chatWindowSource(sessionId)
+    return { ...face(), ...(win !== undefined ? { hooks: { ...face().hooks, chatWindow: win } } : {}), keyedHooks: {
       turnSteps: (turn) => {
         const snapshot = chat.getSnapshot()
         if (snapshot === undefined) throw new Error('ds-bot: Chat target is unavailable')
@@ -937,8 +1008,8 @@ export function apply(ctx) {
     () => installAtMenu(),
     installHeader,
     () => shadow('conversation.chat.node', { key: 'assistant-step', priority: BOT_PRIORITY, locale: 'chat', inject: assistantFace }, AssistantCell),
-    () => shadow('conversation.chat.node', { key: 'turn-trigger', priority: BOT_PRIORITY, locale: 'chat', inject: face }, TriggerCell),
-    () => shadow('conversation.chat.node', { key: 'tool-call', priority: BOT_PRIORITY, locale: 'chat', inject: face }, ToolCell),
+    () => shadow('conversation.chat.node', { key: 'turn-trigger', priority: BOT_PRIORITY, locale: 'chat', inject: cellFace }, TriggerCell),
+    () => shadow('conversation.chat.node', { key: 'tool-call', priority: BOT_PRIORITY, locale: 'chat', inject: cellFace }, ToolCell),
     () => shadow('conversation.chat.node', { key: 'turn-process', priority: BOT_PRIORITY, locale: 'chat', inject: face }, TurnProcessCell),
     // DSH's own turn tail stays, so what other plugins add there shows, such as the
     // cards of the files a turn delivered; its copy and branch row is hidden.

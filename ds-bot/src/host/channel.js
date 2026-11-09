@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { changeSidebarGroups } from './sidebar-groups.js'
 import { listDeliverables } from './deliverables.js'
-import { clearAttentionFailure } from './attention-failures.js'
+import { saveAttentionFailureClear } from './attention-failures.js'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { install as installBtw } from './btw.js'
 import { install as installSide } from './side.js'
@@ -343,7 +343,7 @@ export function install(rt) {
           return ok(view())
         case 'attention-failure-clear':
           await rt.load()
-          if (clearAttentionFailure(state, body.id)) await rt.save()
+          await saveAttentionFailureClear(state, body.id, rt.save)
           return ok(null)
         case 'sidebar-group':
           await rt.load()
@@ -385,6 +385,14 @@ export function install(rt) {
         case 'secret-delete':
           await rt.load()
           return ok(await rt.secretEndpoint(endpoint, body))
+        case 'connector-composio-key':
+        case 'connector-composio-action':
+        case 'connector-notion-accounts':
+        case 'connector-notion-configs':
+        case 'connector-notion-create-config':
+        case 'connector-notion-link':
+        case 'connector-notion-poll':
+        case 'connector-notion-cancel':
         case 'connector-connect':
         case 'connector-disconnect':
         case 'connector-retry':

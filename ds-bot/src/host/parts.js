@@ -1358,7 +1358,7 @@ export function install(rt) {
         // read the way the live chat reads a settled call (shared/group-replies.js).
         const message = event.data?.message
         if (!relayCalls.has(message?.toolCallId)) continue
-        const { replies } = parseReplies(textOf(message?.content))
+        const { replies, broken } = parseReplies(textOf(message?.content))
         for (const { reply, texts, time, duration } of stackReplies(replies)) {
           // Reply rows take the reply's own time, and no seq: several rows share
           // the result event's seq, which the chat keys a post's anchor by.
@@ -1368,6 +1368,7 @@ export function install(rt) {
           else if (reply.kind === undefined) items.push({ kind: 'post', botId: reply.botId ?? null, name: reply.name ?? null, texts, ...item, ...(duration === undefined ? {} : { duration }) })
           else items.push({ kind: 'relay', reply, ...item })
         }
+        if (broken) items.push({ kind: 'group-replies-unavailable', time: event.time, ...(turn === undefined ? {} : { turn }) })
         continue
       }
       if (event.type !== 'user/message') continue

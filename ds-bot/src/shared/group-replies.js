@@ -11,8 +11,16 @@ const RELAY_LIST = /"replies"\s*:\s*\[/
 // "[... tool result middle pruned ...]". Its "]" looks like the end of the
 // replies array to a naive scan, so the text is split on the marker first.
 const PRUNE_MARKER = /\[\.\.\. tool result middle pruned \.\.\.\]/
+const validReply = reply => reply && typeof reply === 'object' && !Array.isArray(reply) &&
+  (reply.kind !== undefined && reply.kind !== 'user' || typeof reply.text === 'string')
 export function parseReplies(text) {
-  try { return { replies: JSON.parse(text).replies ?? [], broken: false } } catch { /* fall through */ }
+  try {
+    const value = JSON.parse(text)
+    if (Array.isArray(value?.replies)) {
+      const replies = value.replies.filter(validReply)
+      return { replies, broken: replies.length !== value.replies.length }
+    }
+  } catch { /* fall through */ }
   const replies = []
   const head = RELAY_LIST.exec(text)
   if (head) {
@@ -23,7 +31,7 @@ export function parseReplies(text) {
       if (first !== -1) scanReplies(piece, first, replies)
     }
   }
-  return { replies, broken: true }
+  return { replies: replies.filter(validReply), broken: true }
 }
 
 function scanReplies(text, start, replies) {
@@ -59,7 +67,7 @@ export function stackReplies(replies) {
   const items = []
   replies.forEach((reply, index) => {
     const last = items.at(-1)
-    if (reply.kind === undefined && last?.reply.kind === undefined && last?.reply.botId === reply.botId) {
+    if (reply.kind === undefined && reply.botId && last?.reply.kind === undefined && last?.reply.botId === reply.botId) {
       last.texts.push(reply.text)
       last.time = reply.time
       last.duration = reply.duration
@@ -67,3 +75,9 @@ export function stackReplies(replies) {
   })
   return items
 }
+
+const size = value => Array.isArray(value) ? value.length : (Number(value) || 0)
+// One shared verdict for the live cell and the chat-window projection: a round
+// draws a row only when it has a reply, a speaking Bot, or a broken-result marker.
+export const groupReplyDraws = ({ replies, speaking, broken } = {}) =>
+  size(replies) > 0 || size(speaking) > 0 || broken === true

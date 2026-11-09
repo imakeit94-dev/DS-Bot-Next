@@ -2,6 +2,7 @@ import { createElement as h, useRef, useState } from 'react'
 import { useMorph } from './motion.js'
 import { MaskedInput } from './secret-card.js'
 import { t } from './i18n.js'
+import { ComposioCard, NotionRow, GoogleRow } from './notion-onboarding.js'
 
 const TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new'
 
@@ -14,6 +15,7 @@ const ABOUT = { github: () => t('Repositories, issues, and pull requests') }
 function statusText(connector) {
   if (connector.state === 'connecting') return t('Connecting…')
   if (connector.state === 'error') return t('Could not connect: {error}', { error: connector.error ?? '' })
+  if (connector.id === 'notion') return connector.state === 'ready' ? t('Selected page · content may be incomplete') : t('Not connected · single-page read')
   if (connector.state === 'ready') return connector.account ? t('Connected as {account}', { account: connector.account }) : t('Connected')
   return ABOUT[connector.id]?.() ?? ''
 }
@@ -21,6 +23,8 @@ function statusText(connector) {
 function ConnectorRow({ connector, actions }) {
   const [form, setForm] = useState(false)
   const [token, setToken] = useState('')
+  const [accountId, setAccountId] = useState('')
+  const [pageId, setPageId] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const run = (task, after) => {
@@ -29,8 +33,8 @@ function ConnectorRow({ connector, actions }) {
     return task.then(() => { after?.() }, failure => setError(failure?.message ?? String(failure))).finally(() => setBusy(false))
   }
   const connect = () => {
-    if (busy || token.trim() === '') return
-    void run(actions.connectorConnect(connector.id, token), () => { setToken(''); setForm(false) })
+    if (busy || (connector.id === 'notion' ? !accountId.trim() || !pageId.trim() : !token.trim())) return
+    void run(actions.connectorConnect(connector.id, token, connector.id === 'notion' ? { accountId: accountId.trim(), pageId: pageId.trim() } : undefined), () => { setToken(''); setAccountId(''); setPageId(''); setForm(false) })
   }
   const on = connector.state !== 'off'
   const Mark = MARKS[connector.id]
@@ -48,11 +52,15 @@ function ConnectorRow({ connector, actions }) {
           ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: busy, onClick: () => void run(actions.connectorDisconnect(connector.id)) }, t('Disconnect'))
           : form ? null : h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => setForm(true) }, t('Connect')))),
     !on && form ? h('div', { className: 'bt-connector-form' },
-      h('label', { className: 'bt-q-field bt-secret-field' }, h(MaskedInput, { value: token, onChange: setToken, onEnter: connect, label: t('GitHub token'), autoFocus: true })),
+      connector.id === 'notion' ? h('div', null,
+        h('p', null, t('Save COMPOSIO_API_KEY in Secrets first. This selection is cleared when the app restarts.')),
+        h('label', null, t('Connected account ID'), h('input', { value: accountId, onChange: event => setAccountId(event.target.value) })),
+        h('label', null, t('Page ID'), h('input', { value: pageId, onChange: event => setPageId(event.target.value) })))
+        : h('label', { className: 'bt-q-field bt-secret-field' }, h(MaskedInput, { value: token, onChange: setToken, onEnter: connect, label: t('GitHub token'), autoFocus: true })),
       h('div', { className: 'bt-connector-form-row' },
-        h('a', { className: 'bt-connector-link', href: TOKEN_URL, target: '_blank', rel: 'noopener noreferrer' }, t('Create a token on GitHub')),
-        h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: busy, onClick: () => { setForm(false); setToken(''); setError(null) } }, t('Cancel')),
-        h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: busy || token.trim() === '', onClick: connect }, busy ? t('Connecting…') : t('Connect')))) : null,
+        connector.id === 'github' ? h('a', { className: 'bt-connector-link', href: TOKEN_URL, target: '_blank', rel: 'noopener noreferrer' }, t('Create a token on GitHub')) : null,
+        h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: busy, onClick: () => { setForm(false); setToken(''); setAccountId(''); setPageId(''); setError(null) } }, t('Cancel')),
+        h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: busy || (connector.id === 'notion' ? !accountId.trim() || !pageId.trim() : !token.trim()), onClick: connect }, busy ? t('Connecting…') : t('Connect')))) : null,
     error ? h('div', { className: 'bt-connector-error', role: 'alert' }, error) : null)
 }
 
@@ -60,7 +68,9 @@ function ConnectorRow({ connector, actions }) {
 export function ConnectorsPage({ roster, actions }) {
   const list = roster?.connectors ?? []
   return h('section', { className: 'bt-set-section' },
-    h('div', { className: 'bt-set-card bt-connectors-card' }, list.length === 0
-      ? h('div', { className: 'bt-set-row' }, h('span', { className: 'bt-set-hint' }, t('No connectors')))
-      : list.map(connector => h(ConnectorRow, { key: connector.id, connector, actions }))))
+    h('p', { className: 'bt-set-hint' }, t('Connections are shared by all Bots in this workspace.')),
+    h('div', { className: 'bt-set-card bt-connectors-card' },
+      h(ComposioCard, { configured: Boolean(list.find(connector => connector.id === 'notion')?.composioConfigured), actions }),
+      ...list.map(connector => h(connector.id === 'notion' ? NotionRow : ['gmail', 'googlesheets'].includes(connector.id) ? GoogleRow : ConnectorRow, { key: connector.id === 'github' ? connector.id : `${connector.id}:${connector.composioRevision ?? 0}`, connector, actions }))),
+    h('p', { className: 'bt-set-hint' }, t('Disconnecting GitHub keeps the shared token and does not revoke remote access.')))
 }

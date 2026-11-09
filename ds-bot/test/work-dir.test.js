@@ -1260,8 +1260,23 @@ test('a group\'s earlier parts page like a Bot\'s own chat', async (t) => {
       content: [{ type: 'text', text: JSON.stringify({ replies: [{ botId: 'b', name: 'Writer', color: 'blue', text: '在 docs/ 下面', time: 1000 }, { kind: 'missed', botId: 'a', name: 'Chief', color: 'gray', time: 2000 }] }) }],
     }),
   }, { surfaceOp: 'append', sourceEventSeqs: [relay.seq] })
+  const partial = record('tool/call', { turn: 1, step: 2, callId: 'partial', name: 'group_relay', arguments: '{}' })
+  record('tool/result', {
+    turn: 1, step: 2,
+    message: createToolResultMessage({ callId: 'partial', isError: false, content: [{ type: 'text', text: '{"replies":[{"botId":"b","name":"Writer","text":"Survived text","time":3000},[... tool result middle pruned ...]' }] }),
+  }, { surfaceOp: 'append', sourceEventSeqs: [partial.seq] })
+  const damaged = record('tool/call', { turn: 1, step: 3, callId: 'damaged', name: 'group_relay', arguments: '{}' })
+  record('tool/result', {
+    turn: 1, step: 3,
+    message: createToolResultMessage({ callId: 'damaged', isError: false, content: [{ type: 'text', text: 'unrecoverable' }] }),
+  }, { surfaceOp: 'append', sourceEventSeqs: [damaged.seq] })
+  const invalidBody = record('tool/call', { turn: 1, step: 4, callId: 'invalid-body', name: 'group_relay', arguments: '{}' })
+  record('tool/result', {
+    turn: 1, step: 4,
+    message: createToolResultMessage({ callId: 'invalid-body', isError: false, content: [{ type: 'text', text: JSON.stringify({ replies: [{ botId: 'b', name: 'Writer', text: 'Valid historical reply' }, { botId: 'b', text: 42 }] }) }] }),
+  }, { surfaceOp: 'append', sourceEventSeqs: [invalidBody.seq] })
   // A result whose call named another tool is not the group's conversation.
-  const other = record('tool/call', { turn: 1, step: 2, callId: 'toolu_2', name: 'remember', arguments: '{}' })
+  const other = record('tool/call', { turn: 1, step: 4, callId: 'toolu_2', name: 'remember', arguments: '{}' })
   record('tool/result', {
     turn: 1, step: 2,
     message: createToolResultMessage({ callId: 'toolu_2', isError: false, content: [{ type: 'text', text: 'Saved to memory' }] }),
@@ -1278,9 +1293,20 @@ test('a group\'s earlier parts page like a Bot\'s own chat', async (t) => {
     ['post', 'Writer', 'Done.'],
     ['post', 'Writer', '在 docs/ 下面'],
     ['relay', 'missed', null],
+    ['post', 'Writer', 'Survived text'],
+    ['group-replies-unavailable', null, null],
+    ['group-replies-unavailable', null, null],
+    ['post', 'Writer', 'Valid historical reply'],
+    ['group-replies-unavailable', null, null],
   ])
   assert.equal(page.cursor, null)
   assert.equal(typeof page.startedAt, 'number')
+  ctx.sessionController.page = async ({ address }) => (address?.sessionId === 'r1'
+    ? { records: events.map(event => ({ event })), hasMore: true }
+    : { records: [], hasMore: false })
+  const paged = (await call('earlier', { sessionId: 's1' })).value
+  assert.equal(paged.cursor.beforeSeq, events[0].seq)
+  assert.equal(paged.items.filter(item => item.kind === 'group-replies-unavailable').length, 3)
   // The first part itself has nothing before it.
   assert.deepEqual((await call('earlier', { sessionId: 'r1' })).value.items, [])
 })

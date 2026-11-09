@@ -35,6 +35,10 @@ Tested with dsh `0.2.1-rc.4` (Web) and `0.2.0-rc.2` (Web and Desktop).
 - **Usage**: Settings → Usage shows token usage by time (24 hours to 12 months, or days picked on a calendar), by Bot and by model, with a page for each Bot and each model. Calls that a Session logs are read from the logs, so older chats count too. Calls that leave no log (checkpoints, handoff notes, the steward, image readings, dsh titles and compaction) are counted while they stream, from the time the plugin runs. Tokens only, no cost.
 - **Make it yours**: name, role, instructions, model and look (20 characters and 12 colors, or your own photo) for each Bot; a theme, an accent color and an avatar animation level (quiet, normal or lively) for the team. A pinned Bot or group chat shows a small pushpin in the sidebar. Settings has these pages: General (look), Bots (Main Bots and each Bot's settings), Group chats (each group's settings), Connectors, Capabilities, Scheduled tasks, Usage, Secrets, Feedback and About DS Bot (versions, updates and links).
 
+## GenUI compatibility
+
+DS Bot sessions exclude the GenUI prompt section named `genui:cards`; other agent sessions keep it. This applies to the default GenUI bundle configuration. If GenUI's `sectionName` is customized, inspect that setting in the active plugin configuration: a value other than `genui:cards` is not covered by this filter. Existing conversations can retain earlier system prompts in their history; start a new conversation to obtain a clean prompt.
+
 ## Install
 
 The [project page](../README.md#install) has the full steps for dsh Desktop and dsh Web. In short:

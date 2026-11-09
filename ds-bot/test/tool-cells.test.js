@@ -3,13 +3,14 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
+import { createSource, groupRelayKey } from '../src/client/sources.js'
 
 // The tool cells and the card docks, bundled once and rendered with a minimal React:
 // components run as plain functions, effects are collected and run on demand.
 const { outputFiles } = await build({
   stdin: {
     contents: [
-      "export { ToolCell, TriggerCell, callTree, CellEmpty, Bubbles } from './src/client/cells.js'",
+      "export { ToolCell, TriggerCell, callTree, CellEmpty, Bubbles, ChatRows } from './src/client/cells.js'",
       "export { stackReplies } from './src/shared/group-replies.js'",
       "export { QuestionDock } from './src/client/questions.js'",
       "export { SecretDock } from './src/client/secret-card.js'",
@@ -23,6 +24,7 @@ const { outputFiles } = await build({
 })
 let effects = []
 const sets = []
+let openSummary = false
 const Fragment = Symbol('Fragment')
 const h = (type, props, ...children) => ({ type, props: { ...props, children } })
 const react = {
@@ -32,7 +34,7 @@ const react = {
   createElement: h, Fragment,
   useEffect: (effect) => { effects.push(effect) },
   useLayoutEffect: (effect) => { effects.push(effect) },
-  useState: initial => [typeof initial === 'function' ? initial() : initial, value => sets.push(value)],
+  useState: initial => [openSummary && initial === false ? true : (typeof initial === 'function' ? initial() : initial), value => sets.push(value)],
   useMemo: make => make(), useRef: current => ({ current }), useId: () => 'card-id',
   useSyncExternalStore: (subscribe, getSnapshot) => getSnapshot(),
 }
@@ -65,7 +67,7 @@ runInNewContext(outputFiles[0].text, {
     throw new Error(`Unexpected platform module ${name}`)
   },
 })
-const { ToolCell, TriggerCell, callTree, stackReplies, CellEmpty, Bubbles, QuestionDock, SecretDock, countCards, ViewMenuList, WidgetView } = module.exports
+const { ToolCell, TriggerCell, callTree, stackReplies, CellEmpty, Bubbles, ChatRows, QuestionDock, SecretDock, countCards, ViewMenuList, WidgetView } = module.exports
 
 // Runs the effects collected since the last render; returns the cleanups.
 const mount = () => {
@@ -757,7 +759,24 @@ test('a PTC group relay shows its replies from the sub-call, live and after relo
 
   const progress = [{ callId: 'other', replies: [{ botId: 'chief', text: 'Not this round.' }] }, { callId: 'call-1-1:ptc:1', replies: replies.slice(0, 1), speaking: ['chief'] }]
   const asked = []
-  const actions = { roomProgress: async (id) => { asked.push(id); return progress } }
+  const notes = []
+  const groupRelays = createSource({})
+  const actions = {
+    roomProgress: async (id) => { asked.push(id); return progress },
+    groupRelays,
+    noteGroupRelay: (sessionId, callId, live) => {
+      notes.push([sessionId, callId, live])
+      const key = groupRelayKey(sessionId, callId)
+      groupRelays.set((state) => {
+        if (live === undefined) {
+          const next = { ...state }
+          delete next[key]
+          return next
+        }
+        return { ...state, [key]: live }
+      })
+    },
+  }
   const running = program([call('group_relay', 'call-1-1:ptc:1', { running: true })], { running: true })
   const relay = find(ToolCell(props(running, { sessionId: 'room', actions })), node => node.type?.name === 'GroupReplies')
   effects = []
@@ -765,10 +784,106 @@ test('a PTC group relay shows its replies from the sub-call, live and after relo
   relay.type(relay.props)
   const stop = mount()
   await new Promise(resolve => setImmediate(resolve))
+  const live = groupRelays.getSnapshot()[groupRelayKey('room', 'call-1-1:ptc:1')]
+  assert.deepEqual(JSON.parse(JSON.stringify(live)), { replies: replies.slice(0, 1), speaking: ['chief'], broken: false })
+  assert.deepEqual(JSON.parse(JSON.stringify(notes[0])), ['room', 'call-1-1:ptc:1', { replies: replies.slice(0, 1), speaking: ['chief'], broken: false }])
+  assert.match(text(expand(relay.type(relay.props))), /Writer.*Hello from Writer\..*Chief.*typing/)
   stop()
   timers.clear()
   assert.deepEqual(asked, ['room'])
-  assert.deepEqual(JSON.parse(JSON.stringify(sets)), [{ replies: replies.slice(0, 1), speaking: ['chief'] }])
+  assert.equal(sets.length, 0, 'the live rows come from the shared source, not local state')
+  assert.deepEqual(JSON.parse(JSON.stringify(notes.at(-1).slice(0, 2))), ['room', 'call-1-1:ptc:1'])
+  assert.equal(notes.at(-1)[2], undefined)
+})
+
+test('lookup process uses a native disclosure and preserves its content', () => {
+  const replies = [{ kind: 'lookup', botId: 'writer', text: 'release notes' }, { botId: 'writer', text: 'Visible reply' }]
+  const out = show(call('group_relay', 'round', { content: { replies } }), { sessionId: 'room' })
+  const details = find(out, node => node.type === 'details' && text(node).includes('View process'))
+  assert.ok(details)
+  assert.equal(details.props.open, undefined)
+  assert.match(text(details), /View process.*release notes/)
+  assert.match(text(out), /Visible reply/)
+})
+
+test('unknown relay events remain visible with their original fields', () => {
+  const replies = [{ kind: 'new-event', botId: 'writer', text: 'Keep this' }]
+  const out = show(call('group_relay', 'round', { content: { replies } }), { sessionId: 'room' })
+  assert.match(text(out), /new-event.*Keep this/)
+  assert.ok(find(out, node => node.type === 'details' && node.props.className === 'bt-group-summary'))
+})
+
+test('call summary keeps each recorded reply in order and marks partial or failed calls', () => {
+  const replies = [{ botId: 'writer', text: 'first' }, { botId: 'writer', text: 'second' }, { kind: 'new-event', text: 'event text' }]
+  const closed = show(call('group_relay', 'round', { content: { replies } }), { sessionId: 'room' })
+  const control = find(closed, node => node.props?.className === 'bt-group-summary')
+  assert.ok(control)
+  control.props.onToggle({ currentTarget: { open: true } })
+  assert.equal(sets.pop(), true)
+  openSummary = true
+  try {
+    const out = show(call('group_relay', 'round', { content: { replies }, isError: true }), { sessionId: 'room' })
+    const summary = find(out, node => node.props?.className === 'bt-group-summary')
+    assert.match(text(summary), /first.*second.*Unknown event: new-event.*event text/)
+    assert.match(text(summary), /failed or the record is incomplete/)
+    assert.match(text(summary), /attachments.*attribution is unknown/)
+    const other = show(call('group_relay', 'other', { content: { replies: [{ name: 'Other', text: 'other call' }] } }), { sessionId: 'room' })
+    assert.doesNotMatch(text(find(other, node => node.props?.className === 'bt-group-summary')), /first|second/)
+    const cut = show(call('group_relay', 'partial', { content: '{"replies":[{"text":"kept"}[... tool result middle pruned ...]' }), { sessionId: 'room' })
+    assert.match(text(find(cut, node => node.props?.className === 'bt-group-summary')), /incomplete.*kept/)
+  } finally { openSummary = false }
+  control.props.onToggle({ currentTarget: { open: false } })
+  assert.equal(sets.pop(), false)
+  const unidentified = show(call('group_relay', undefined, { content: { replies } }), { sessionId: 'room' })
+  assert.equal(find(unidentified, node => node.props?.className === 'bt-group-summary'), undefined)
+  const empty = show(call('group_relay', 'empty', { content: { replies: [] } }), { sessionId: 'room' })
+  assert.equal(find(empty, node => node.props?.className === 'bt-group-summary'), undefined)
+  const running = show(call('group_relay', 'running', { running: true }), { sessionId: 'room' })
+  assert.equal(find(running, node => node.props?.className === 'bt-group-summary'), undefined)
+  const malformed = show(call('group_relay', 'malformed', { content: { replies: [null, { text: 'survived' }] } }), { sessionId: 'room' })
+  assert.match(text(malformed), /Some group replies are unavailable/)
+  assert.match(text(malformed), /survived/)
+})
+
+test('malformed reply text preserves the valid message and marks it unavailable', () => {
+  const replies = [{ botId: 'writer', text: 'surviving' }, { botId: 'writer', text: 42 }]
+  const out = show(call('group_relay', 'damaged', { content: { replies } }), { sessionId: 'room' })
+  assert.match(text(out), /surviving/)
+  assert.match(text(out), /Some group replies are unavailable/)
+})
+
+test('group relay never borrows another or unidentified live call', async () => {
+  for (const callId of ['wanted', undefined]) {
+    const groupRelays = createSource({})
+    const actions = {
+      roomProgress: async () => [{ replies: [{ botId: 'chief', text: 'Unidentified' }] }, { callId: 'other', replies: [{ botId: 'writer', text: 'Other round' }] }],
+      groupRelays,
+      noteGroupRelay: (sessionId, id, live) => groupRelays.set(state => ({ ...state, [groupRelayKey(sessionId, id)]: live })),
+    }
+    const running = program([call('group_relay', callId, { running: true })], { running: true })
+    const relay = find(ToolCell(props(running, { sessionId: 'room', actions })), node => node.type?.name === 'GroupReplies')
+    effects = []
+    relay.type(relay.props)
+    const stop = mount()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.doesNotMatch(text(expand(relay.type(relay.props))), /Unidentified|Other round/)
+    stop()
+    timers.clear()
+  }
+})
+
+test('an earlier group result renders its missing-replies marker', () => {
+  const out = expand(ChatRows({ items: [{ kind: 'group-replies-unavailable', time: 1 }], sessionId: 'room', roster: team(), actions: {} }))
+  const marker = find(out, node => node.props?.role === 'status')
+  assert.ok(marker)
+  assert.match(text(marker), /Some group replies are unavailable/)
+})
+
+test('a partially recovered group result marks missing replies and unknown attribution', () => {
+  const out = show(call('group_relay', 'partial', { content: '{"replies":[{"botId":"writer","text":"Survived"}[... tool result middle pruned ...]' }), { sessionId: 'room' })
+  assert.match(text(out), /Delivery attribution: unknown/)
+  assert.match(text(out), /Some group replies are unavailable/)
+  assert.match(text(out), /Survived/)
 })
 
 // #105: the secret and question cards of a PTC program showed nowhere.

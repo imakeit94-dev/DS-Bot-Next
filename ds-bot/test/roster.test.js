@@ -8,6 +8,7 @@ import { test } from 'node:test'
 import { format } from 'node:util'
 import { createRuntime } from '../index.js'
 import { fakeContext } from './fake-ctx.js'
+import { recordAttentionFailure } from '../src/host/attention-failures.js'
 
 // Enough of the dsh services for the roster to make Sessions; kickoff messages are dropped.
 let rt
@@ -81,6 +82,41 @@ const until = async (check) => {
     await settle()
   }
 }
+
+test('failure acknowledgement through the channel persists after restart', async () => {
+  const first = start()
+  await first.call('state', {})
+  const main = rt.state.mainBotIds[0]
+  assert.ok(main)
+  recordAttentionFailure(rt.state, main)
+  const id = rt.state.attentionFailures[0].id
+  await rt.save({ required: true })
+  assert.equal((await first.call('state', {})).value.attentionFailures.length, 1)
+  assert.equal((await first.call('attention-failure-clear', { id })).ok, true)
+  assert.deepEqual((await first.call('state', {})).value.attentionFailures, [])
+  const persisted = JSON.parse(readFileSync(join(first.home, 'state.json'), 'utf8'))
+  await first.stop()
+  const restarted = start(persisted)
+  try { assert.deepEqual((await restarted.call('state', {})).value.attentionFailures, []) } finally { await restarted.stop() }
+})
+
+test('failure acknowledgement returns an error and stays retryable when the channel cannot save', async () => {
+  const fixture = start()
+  try {
+    await fixture.call('state', {})
+    recordAttentionFailure(rt.state, rt.state.mainBotIds[0])
+    const id = rt.state.attentionFailures[0].id
+    await rt.save({ required: true })
+    const save = rt.save
+    rt.save = async options => { assert.equal(options.required, true); throw new Error('synthetic read only') }
+    const failed = await fixture.call('attention-failure-clear', { id })
+    assert.equal(failed.ok, false)
+    assert.deepEqual((await fixture.call('state', {})).value.attentionFailures.map(item => item.id), [id])
+    rt.save = save
+    assert.equal((await fixture.call('attention-failure-clear', { id })).ok, true)
+    assert.deepEqual((await fixture.call('state', {})).value.attentionFailures, [])
+  } finally { await fixture.stop() }
+})
 
 test('the first Main Bot waits for the user to pick a model, then greets', async (t) => {
   const { call, stop, sent, selected } = start(undefined, { models: ['deepseek-v4-flash', 'deepseek-v4-pro'] })

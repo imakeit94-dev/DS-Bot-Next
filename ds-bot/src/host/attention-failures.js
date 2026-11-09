@@ -19,3 +19,28 @@ export function clearAttentionFailure(state, id) {
   state.attentionFailures = next
   return true
 }
+
+// Serialize acknowledgements so a failed save can restore its item without
+// undoing another acknowledgement. A newer failure for the same target wins.
+const clearing = new WeakMap()
+export async function saveAttentionFailureClear(state, id, save) {
+  const previous = clearing.get(state) ?? Promise.resolve()
+  const operation = previous.catch(() => {}).then(async () => {
+    const failures = Array.isArray(state.attentionFailures) ? state.attentionFailures : []
+    const index = failures.findIndex(item => item.id === id)
+    const removed = failures[index]
+    if (!clearAttentionFailure(state, id)) return false
+    try {
+      await save({ required: true })
+      return true
+    } catch (error) {
+      const current = Array.isArray(state.attentionFailures) ? state.attentionFailures : []
+      if (removed && !current.some(item => item.targetId === removed.targetId)) {
+        state.attentionFailures = [...current.slice(0, index), removed, ...current.slice(index)]
+      }
+      throw error
+    }
+  })
+  clearing.set(state, operation)
+  try { return await operation } finally { if (clearing.get(state) === operation) clearing.delete(state) }
+}

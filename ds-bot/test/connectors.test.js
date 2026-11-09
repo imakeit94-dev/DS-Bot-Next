@@ -3,13 +3,44 @@ import { randomBytes } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { runInNewContext } from 'node:vm'
+import { build } from 'esbuild'
 import { test } from 'node:test'
 import { apply } from '../index.js'
-import { signIn } from '../src/host/connectors.js'
+import { install, signIn } from '../src/host/connectors.js'
 import { fakeContext } from './fake-ctx.js'
 
 const fresh = () => `ghp_${randomBytes(16).toString('hex')}`
 const answer = (status, body) => ({ status, ok: status >= 200 && status < 300, json: async () => body })
+
+test('connector page shows the shared scope and an unavailable Notion entry', async () => {
+  const { outputFiles } = await build({ entryPoints: [fileURLToPath(new URL('../src/client/connectors.js', import.meta.url))], bundle: true, format: 'cjs', platform: 'browser', write: false, external: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'] })
+  const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children: children.flat(Infinity) } }), useState: initial => [initial, () => {}], useRef: value => ({ current: value }), useEffect() {}, useLayoutEffect() {} }
+  const module = { exports: {} }
+  runInNewContext(outputFiles[0].text, { module, exports: module.exports, require: name => name === 'react' ? react : {} })
+  const rendered = JSON.stringify(module.exports.ConnectorsPage({ roster: { connectors: [{ id: 'notion', name: 'Notion', state: 'off' }] }, actions: {} }))
+  assert.match(rendered, /notion/)
+  assert.match(rendered, /shared by all Bots/)
+  assert.doesNotMatch(rendered, /onClick/)
+})
+
+test('Notion disconnect wins while secrets load and persists the off state', async () => {
+  let finish
+  const pendingLoad = new Promise(resolve => { finish = resolve })
+  let registered = 0
+  let cleanup
+  const rt = { ctx: { tools: { register: () => { registered++; return () => { registered-- } } }, effect: callback => { cleanup = callback() } }, state: {}, config: { github: false }, loadSecrets: () => pendingLoad, load: async () => {}, save: async () => {}, secretValue: () => 'fake-key', warn() {}, redactSecrets: value => value }
+  install(rt)
+  const connecting = rt.connectorEndpoint('connector-connect', { id: 'notion', accountId: 'ca_fixture', pageId: '0123456789abcdef0123456789abcdef' })
+  await rt.connectorEndpoint('connector-disconnect', { id: 'notion' })
+  finish()
+  await assert.rejects(connecting, /cancelled/)
+  assert.equal(registered, 0)
+  assert.deepEqual(rt.state, { connectors: { notion: { enabled: false } } })
+  assert.equal(rt.connectorsView()[0].state, 'off')
+  cleanup()
+})
 
 test('signIn asks GitHub who owns the token', async () => {
   const token = fresh()
@@ -41,8 +72,7 @@ const teamHome = () => {
 }
 
 // A loader that hands out a fake MCP client and records each mount.
-function setup({ fail = false, github = { api: 'https://gh.test' } } = {}) {
-  const home = teamHome()
+function setup({ fail = false, github = { api: 'https://gh.test' }, home = teamHome() } = {}) {
   const mounts = []
   const plugin = { name: 'mcp-client', apply() {} }
   const loader = {
@@ -75,7 +105,7 @@ async function call(ctx, endpoint, payload) {
   return response.json()
 }
 
-test('connecting saves the token, kept out of every Bot shell, and mounts GitHub MCP; disconnecting undoes both', async (t) => {
+test('connecting mounts GitHub MCP; disconnecting preserves the shared token', async (t) => {
   const realFetch = globalThis.fetch
   t.after(() => { globalThis.fetch = realFetch })
   globalThis.fetch = async () => answer(200, { login: 'octo' })
@@ -84,11 +114,11 @@ test('connecting saves the token, kept out of every Bot shell, and mounts GitHub
   const token = fresh()
 
   const before = await call(ctx, 'state', {})
-  assert.deepEqual(before.value.connectors, [{ id: 'github', name: 'GitHub', state: 'off', account: null }])
+  assert.deepEqual(before.value.connectors, [{ id: 'github', name: 'GitHub', state: 'off', account: null }, { id: 'notion', name: 'Notion', state: 'off' }, { id: 'gmail', name: 'Gmail', state: 'off' }, { id: 'googlesheets', name: 'Google Sheets', state: 'off' }])
 
   const connected = await call(ctx, 'connector-connect', { id: 'github', token: ` ${token} ` })
   assert.equal(connected.ok, true, JSON.stringify(connected))
-  assert.deepEqual(connected.value, [{ id: 'github', name: 'GitHub', state: 'ready', account: 'octo' }])
+  assert.deepEqual(connected.value, [{ id: 'github', name: 'GitHub', state: 'ready', account: 'octo' }, { id: 'notion', name: 'Notion', state: 'off' }, { id: 'gmail', name: 'Gmail', state: 'off' }, { id: 'googlesheets', name: 'Google Sheets', state: 'off' }])
   assert.equal(mounts.length, 1)
   assert.deepEqual(mounts[0].config, {
     transport: 'streamable-http',
@@ -103,9 +133,107 @@ test('connecting saves the token, kept out of every Bot shell, and mounts GitHub
   assert.ok(!readFileSync(join(home, 'state.json'), 'utf8').includes(token))
 
   const off = await call(ctx, 'connector-disconnect', { id: 'github' })
-  assert.deepEqual(off.value, [{ id: 'github', name: 'GitHub', state: 'off', account: null }])
+  assert.deepEqual(off.value, [{ id: 'github', name: 'GitHub', state: 'off', account: 'octo' }, { id: 'notion', name: 'Notion', state: 'off' }, { id: 'gmail', name: 'Gmail', state: 'off' }, { id: 'googlesheets', name: 'Google Sheets', state: 'off' }])
   assert.equal(mounts[0].disposed, true)
-  assert.deepEqual((await call(ctx, 'state', {})).value.secrets, [])
+  assert.deepEqual((await call(ctx, 'state', {})).value.secrets.map(secret => [secret.name, secret.scope]), [['GITHUB_TOKEN', []]])
+  assert.equal(JSON.parse(readFileSync(join(home, 'state.json'), 'utf8')).connectors.github.enabled, false)
+  await ctx.dispose()
+  const restarted = setup({ home })
+  t.after(() => restarted.ctx.dispose())
+  const restored = await call(restarted.ctx, 'state', {})
+  assert.equal(restored.value.connectors[0].state, 'off')
+  assert.equal(restarted.mounts.length, 0)
+  assert.deepEqual(restored.value.secrets.map(secret => secret.name), ['GITHUB_TOKEN'])
+})
+
+test('legacy GitHub state without enabled still mounts a retained secret on restart', async (t) => {
+  const original = globalThis.fetch
+  t.after(() => { globalThis.fetch = original })
+  globalThis.fetch = async () => answer(200, { login: 'legacy' })
+  const initial = setup()
+  t.after(() => rmSync(initial.home, { recursive: true, force: true, maxRetries: 5 }))
+  await call(initial.ctx, 'connector-connect', { id: 'github', token: fresh() })
+  await initial.ctx.dispose()
+  const path = join(initial.home, 'state.json')
+  const saved = JSON.parse(readFileSync(path, 'utf8'))
+  delete saved.connectors.github.enabled
+  writeFileSync(path, JSON.stringify(saved))
+  const restarted = setup({ home: initial.home })
+  t.after(() => restarted.ctx.dispose())
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal((await call(restarted.ctx, 'state', {})).value.connectors[0].state, 'ready')
+  assert.equal(restarted.mounts.length, 1)
+})
+
+test('failed disconnect persistence leaves the current host off and reports it', async () => {
+  const state = { connectors: { github: { login: 'octo' } } }
+  const rt = {
+    ctx: { effect() {} }, state, config: {},
+    secretValue: () => 'synthetic-token', loadSecrets: async () => {},
+    redactSecrets: value => value, warn() {},
+    save: async ({ required }) => { assert.equal(required, true); throw new Error('synthetic failure') },
+  }
+  install(rt)
+  await assert.rejects(rt.connectorEndpoint('connector-disconnect', { id: 'github' }), /off until restart/)
+  assert.equal(state.connectors.github.enabled, false)
+  assert.equal(rt.connectorsView()[0].state, 'off')
+  await rt.connectorEndpoint('connector-retry', { id: 'github' })
+  assert.equal(rt.connectorsView()[0].state, 'off')
+})
+
+test('disconnect prevents a delayed loader from resurrecting GitHub', async () => {
+  let finishImport
+  const delayed = new Promise(resolve => { finishImport = resolve })
+  let mounts = 0
+  const state = { connectors: { github: { login: 'octo' } } }
+  const rt = {
+    ctx: { effect(run) { run() }, get: () => ({ import: () => delayed }), plugin() { mounts++; throw new Error('unexpected mount') } },
+    state, config: {}, secretValue: () => 'synthetic-token', loadSecrets: async () => {}, load: async () => {},
+    redactSecrets: value => value, warn() {}, save: async () => {},
+  }
+  install(rt)
+  await new Promise(resolve => setImmediate(resolve))
+  await rt.connectorEndpoint('connector-disconnect', { id: 'github' })
+  finishImport({ default: {} })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(mounts, 0)
+  assert.equal(rt.connectorsView()[0].state, 'off')
+})
+
+test('disconnect disposes a GitHub mount still initializing', async () => {
+  let finish
+  const ready = new Promise(resolve => { finish = resolve })
+  let disposed = false
+  const state = { connectors: { github: { login: 'octo' } } }
+  const rt = {
+    ctx: { effect(run) { run() }, get: () => ({ import: async () => ({ default: {} }) }), plugin: () => ({ await: () => ready, dispose: () => { disposed = true } }) },
+    state, config: {}, secretValue: () => 'synthetic-token', loadSecrets: async () => {}, load: async () => {},
+    redactSecrets: value => value, warn() {}, save: async () => {},
+  }
+  install(rt)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(rt.connectorsView()[0].state, 'connecting')
+  await rt.connectorEndpoint('connector-disconnect', { id: 'github' })
+  finish()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(disposed, true)
+  assert.equal(rt.connectorsView()[0].state, 'off')
+})
+
+test('disconnect wins while GitHub sign in is in flight', async (t) => {
+  const original = globalThis.fetch
+  t.after(() => { globalThis.fetch = original })
+  let respond
+  const requested = new Promise(resolve => { globalThis.fetch = () => { resolve(); return new Promise(done => { respond = done }) } })
+  const { ctx, home, mounts } = setup()
+  t.after(async () => { await ctx.dispose(); rmSync(home, { recursive: true, force: true, maxRetries: 5 }) })
+  const pending = call(ctx, 'connector-connect', { id: 'github', token: fresh() })
+  await requested
+  await call(ctx, 'connector-disconnect', { id: 'github' })
+  respond(answer(200, { login: 'octo' }))
+  assert.equal((await pending).ok, false)
+  assert.equal(mounts.length, 0)
+  assert.equal((await call(ctx, 'state', {})).value.connectors[0].state, 'off')
 })
 
 test('a token GitHub refuses is not saved', async (t) => {
@@ -156,7 +284,7 @@ test('github: false hides the connector', async (t) => {
   capture(ctx)
   apply(ctx, { home, github: false })
   t.after(async () => { await ctx.dispose(); rmSync(home, { recursive: true, force: true, maxRetries: 5 }) })
-  assert.deepEqual((await call(ctx, 'state', {})).value.connectors, [])
+  assert.deepEqual((await call(ctx, 'state', {})).value.connectors, [{ id: 'notion', name: 'Notion', state: 'off' }, { id: 'gmail', name: 'Gmail', state: 'off' }, { id: 'googlesheets', name: 'Google Sheets', state: 'off' }])
 })
 
 test('a GitHub address without https refuses to send the token', async (t) => {
