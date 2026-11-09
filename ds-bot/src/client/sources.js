@@ -29,7 +29,11 @@ export function indexRoster(value) {
     for (const id of [...(bot.parts ?? []), bot.sessionId ?? bot.id, bot.id]) byId[id] = bot
   }
   const roomsById = {}
-  for (const room of value.rooms) roomsById[room.id] = room
+  // A group's own Session is a chain of parts like a Bot's chat: `room.id` is its
+  // first part's id and `sessionId` its current one; every part id finds the room.
+  for (const room of value.rooms) {
+    for (const id of [room.id, room.sessionId, ...(room.ownParts ?? [])]) roomsById[id] = room
+  }
   // The DSH Agent is not a Bot: it indexes by its own id and by each Session it owns.
   const agentsById = {}
   const agentOf = {}
@@ -51,6 +55,8 @@ export function isAgentSession(roster, cache, sessionId) {
 
 // A request can reuse a call id; question and secret ids belong to separate kinds.
 export const heldCardKey = (kind, requestId) => JSON.stringify([kind, requestId])
+// A running group relay is identified by its Session and tool call id.
+export const groupRelayKey = (sessionId, callId) => JSON.stringify([sessionId, callId])
 
 // Per Session, how many mounted cells draw or hold each card; 0 drops the entry.
 export function countCards(state, sessionId, callIds, delta) {

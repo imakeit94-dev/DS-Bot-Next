@@ -296,29 +296,12 @@ test('a turn refused for not being a model endpoint refuses that route', () => {
   assert.equal(calls.length, 1)
 })
 
-test('issueUrl fills the issue form, keeps the versions when the errors are too long, and falls back to the clipboard', async () => {
+test('issueUrl opens a blank form without placing user text or diagnostics in its address', async () => {
   const { issueUrl } = await import('../src/client/diagnostics.js')
-  const base = 'https://github.com/Fei2411/DS-Bot/issues/new'
-  const short = issueUrl(base, { what: 'Writer failed\nin the group', diagnostics: '| DS Bot | 0.1.0 |' })
-  assert.equal(short.inline, true)
-  const params = new URL(short.url).searchParams
-  assert.equal(params.get('template'), 'bug.yml')
-  assert.equal(params.get('title'), 'Writer failed')
-  assert.equal(params.get('what'), 'Writer failed\nin the group')
-  assert.equal(params.get('diagnostics'), '| DS Bot | 0.1.0 |')
-  const long = issueUrl(base, { diagnostics: '错误'.repeat(2000) })
-  assert.equal(long.inline, false)
-  assert.ok(long.url.length < 7000)
-  assert.match(new URL(long.url).searchParams.get('diagnostics'), /clipboard/)
-  assert.equal(new URL(long.url).searchParams.has('title'), false)
-  const table = '| | |\n|---|---|\n| DS Bot | 0.1.2 |\n| DSH | 0.2.0 |'
-  const errors = issueUrl(base, { what: 'Writer failed', diagnostics: `${table}\n\nRecent host errors:\n${'错误'.repeat(2000)}` })
-  assert.equal(errors.inline, false)
-  assert.ok(errors.url.length < 7000)
-  const kept = new URL(errors.url).searchParams.get('diagnostics')
-  assert.ok(kept.startsWith(`${table}\n\n`))
-  assert.match(kept, /clipboard: paste them below this line/)
-  assert.doesNotMatch(kept, /错误/)
+  const url = issueUrl('https://github.com/imakeit94-dev/DS-Bot-Next/issues/new', { what: 'private example', diagnostics: 'private details' })
+  assert.equal(new URL(url).searchParams.get('template'), 'bug.yml')
+  assert.doesNotMatch(url, /private/)
+  assert.equal([...new URL(url).searchParams].length, 1)
 })
 
 test('a browser error is noted once, repeats are counted, and clear empties the list', async () => {

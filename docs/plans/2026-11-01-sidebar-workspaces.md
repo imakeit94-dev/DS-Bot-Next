@@ -7,3 +7,6 @@ Users organize their Bot and group-chat entries into named sidebar groups. A sid
 - With no groups, the sidebar remains a flat list. The compact rail keeps the existing flat list so every entry stays reachable. Collapsed groups show their counts and indicate unread activity or pending approvals.
 - Group definitions and membership live in the team preferences, alongside the existing shared sidebar flags. Changes are individual host operations rather than replacing a stale client copy of the list. They use the existing team lock, save and revision flow.
 - A drag handle reorders groups within their pinned or unpinned tier; keyboard-accessible up/down controls remain available. It does not change individual Bot pins or change the order of chats within groups.
+
+- Group headers distinguish needs-attention, unread and working states, including when the group is collapsed. The create control stays above the scrollable list.
+- The group menu can move multiple Bots and group chats in one operation. Every selected entry and the destination are checked before changing membership; no chat or group-chat member is deleted.

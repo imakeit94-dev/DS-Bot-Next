@@ -99,14 +99,10 @@ export async function installSpecOf(ctx) {
 export const repoSlug = () =>
   /github\.com[/:]([\w.-]+\/[\w.-]+?)(?:\.git)?$/i.exec(String(PKG.repository?.url ?? PKG.repository ?? ''))?.[1] ?? null
 
-const repoUrl = () => {
-  const repo = repoSlug()
-  return repo ? `https://github.com/${repo}` : null
-}
-const releasesUrl = () => {
-  const repo = repoUrl()
-  return repo ? `${repo}/releases` : (PKG.homepage ?? null)
-}
+// Public links describe this fork; repoSlug still identifies the verified upstream for DSH updates.
+const NEXT_REPO = 'imakeit94-dev/DS-Bot-Next'
+const repoUrl = () => `https://github.com/${NEXT_REPO}`
+const releasesUrl = () => `${repoUrl()}/releases`
 
 export const STARS_TTL_MS = 60 * 60_000
 
@@ -159,8 +155,7 @@ export function install(rt) {
   let stars = { count: null, at: 0 }
   let starring = null
   async function repoStars() {
-    const repo = repoSlug()
-    if (repo === null) return null
+    const repo = NEXT_REPO
     if (Date.now() - stars.at < STARS_TTL_MS) return stars.count
     starring ??= fetchJson(`https://api.github.com/repos/${repo}`, { 'user-agent': `${PKG.name}/${PKG.version}` })
       .then((info) => { if (Number.isInteger(info?.stargazers_count)) stars = { count: info.stargazers_count, at: Date.now() } })

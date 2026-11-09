@@ -64,6 +64,14 @@ export function install(rt) {
     return ''
   }
 
+  ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
+    const assembly = await next()
+    const id = context?.agent?.id
+    if (id === undefined || (!rt.isBotSession(id) && rt.roomOf(id) === undefined)) return assembly
+    const sections = assembly.sections.filter(section => section.name !== 'genui:cards')
+    return sections.length === assembly.sections.length ? assembly : { ...assembly, sections }
+  })
+
   ctx.effect(() => ctx.systemPrompt.section({
     name: 'bot-identity',
     order: 640,

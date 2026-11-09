@@ -3,13 +3,15 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
+import { createSource, groupRelayKey } from '../src/client/sources.js'
 
 // The tool cells and the card docks, bundled once and rendered with a minimal React:
 // components run as plain functions, effects are collected and run on demand.
 const { outputFiles } = await build({
   stdin: {
     contents: [
-      "export { ToolCell, TriggerCell, callTree, stackReplies } from './src/client/cells.js'",
+      "export { ToolCell, TriggerCell, callTree, CellEmpty, Bubbles, ChatRows } from './src/client/cells.js'",
+      "export { stackReplies } from './src/shared/group-replies.js'",
       "export { QuestionDock } from './src/client/questions.js'",
       "export { SecretDock } from './src/client/secret-card.js'",
       "export { countCards } from './src/client/sources.js'",
@@ -22,6 +24,7 @@ const { outputFiles } = await build({
 })
 let effects = []
 const sets = []
+let openSummary = false
 const Fragment = Symbol('Fragment')
 const h = (type, props, ...children) => ({ type, props: { ...props, children } })
 const react = {
@@ -31,25 +34,40 @@ const react = {
   createElement: h, Fragment,
   useEffect: (effect) => { effects.push(effect) },
   useLayoutEffect: (effect) => { effects.push(effect) },
-  useState: initial => [typeof initial === 'function' ? initial() : initial, value => sets.push(value)],
+  useState: initial => [openSummary && initial === false ? true : (typeof initial === 'function' ? initial() : initial), value => sets.push(value)],
   useMemo: make => make(), useRef: current => ({ current }), useId: () => 'card-id',
   useSyncExternalStore: (subscribe, getSnapshot) => getSnapshot(),
 }
 const timers = new Set()
+// The observers CellEmpty sets on its slot, so a test can deliver a mutation.
+const observers = []
+class FakeObserver {
+  constructor(fn) { this.fn = fn; this.off = false; observers.push(this) }
+  observe() {}
+  disconnect() { this.off = true }
+}
+// The markdown the host's renderer is given, and what DS Bot's copy controls write.
+const markdownTexts = []
+const copiedTexts = []
 const module = { exports: {} }
 runInNewContext(outputFiles[0].text, {
   module, exports: module.exports,
-  document: { hidden: false }, TextEncoder,
+  document: { hidden: false }, TextEncoder, MutationObserver: FakeObserver,
   setTimeout: (fn) => { const timer = { fn }; timers.add(timer); return timer },
   clearTimeout: timer => timers.delete(timer),
   require: (name) => {
     if (name === 'react') return react
     if (name === 'react-dom') return { createPortal: node => node }
-    if (name === '@deepseek-ai/dsh-client-ui-primitives') return { MarkdownText: ({ text }) => text }
+    if (name === '@deepseek-ai/dsh-client-ui-primitives') {
+      return {
+        MarkdownText: ({ text }) => { markdownTexts.push(text); return text },
+        writeClipboard: text => { copiedTexts.push(text); return Promise.resolve(true) },
+      }
+    }
     throw new Error(`Unexpected platform module ${name}`)
   },
 })
-const { ToolCell, TriggerCell, callTree, stackReplies, QuestionDock, SecretDock, countCards, ViewMenuList, WidgetView } = module.exports
+const { ToolCell, TriggerCell, callTree, stackReplies, CellEmpty, Bubbles, ChatRows, QuestionDock, SecretDock, countCards, ViewMenuList, WidgetView } = module.exports
 
 // Runs the effects collected since the last render; returns the cleanups.
 const mount = () => {
@@ -75,6 +93,8 @@ const find = (node, match) => {
   return match(node) ? node : find(node.props.children, match)
 }
 const count = (haystack, needle) => haystack.split(needle).length - 1
+// A cell that draws nothing leaves its empty mark (cells.js CellEmpty).
+const emptied = node => find(expand(node), each => each.props?.['data-bt-empty'] === true) !== undefined
 
 const writer = { id: 'writer', name: 'Writer', color: 'blue' }
 const chief = { id: 'chief', name: 'Chief', color: 'green' }
@@ -154,29 +174,14 @@ test('a user message inside a group relay shows its time', () => {
   assert.deepEqual(times.map(node => node.props.title), [`Today ${clockOf(today)}`])
 })
 
-// A group paused at its relay limit shows the wait, with a Continue button while
-// the room still parks calls — which calls room-continue with the group's id.
-test('a paused group shows the wait, and Continue releases it while calls are parked', () => {
+// LEGACY: a round from when groups paused at a relay limit still shows the pause,
+// with nothing to press.
+test('an old paused round shows the pause as a plain line', () => {
   const replies = [{ kind: 'paused', names: ['Writer', 'Coder'], count: 6, time: at(0, 14, 5) }]
-  const relay = call('group_relay', 'direct', { content: { replies } })
-
-  // Nothing parked on the room: the line stands alone, with no button.
-  const plain = show(relay, { sessionId: 'room' })
-  const events = findAll(plain, node => node.props?.className === 'bt-event').map(text)
+  const out = show(call('group_relay', 'direct', { content: { replies } }), { sessionId: 'room' })
+  const events = findAll(out, node => node.props?.className === 'bt-event').map(text)
   assert.deepEqual(events, ['Paused after 6 Bot relays. Waiting: Writer and Coder'])
-  assert.equal(find(plain, node => node.type === 'button' && text(node) === 'Continue'), undefined)
-
-  const parked = { ...room, paused: [{ id: 'writer', name: 'Writer' }] }
-  const clicked = []
-  const live = show(relay, {
-    sessionId: 'room',
-    roster: team({ rooms: [parked], roomsById: { room: parked } }),
-    actions: { continueRoom: id => clicked.push(id) },
-  })
-  const button = find(live, node => node.type === 'button' && text(node) === 'Continue')
-  assert.ok(button, 'the Continue button is drawn while the room parks calls')
-  button.props.onClick()
-  assert.deepEqual(clicked, ['room'])
+  assert.equal(find(out, node => node.type === 'button'), undefined)
 })
 
 // The admin was alone with the user's message and passed: the round shows the
@@ -291,9 +296,120 @@ test('each sub-call shows its own state, not its program\'s', () => {
 })
 
 test('a program with no known sub-call draws nothing, as before', () => {
-  assert.equal(ToolCell(props(program([]))), null)
-  assert.equal(ToolCell(props(program([call('bash', 'program:ptc:1'), call('read_file', 'program:ptc:2')]))), null)
-  assert.equal(ToolCell(props(call('bash', 'direct'))), null)
+  assert.ok(emptied(ToolCell(props(program([])))))
+  assert.ok(emptied(ToolCell(props(program([call('bash', 'program:ptc:1'), call('read_file', 'program:ptc:2')])))))
+  assert.ok(emptied(ToolCell(props(call('bash', 'direct')))))
+  effects = []
+})
+
+test('every call that draws nothing leaves only the empty mark, so its seat can hide', () => {
+  const roster = team({
+    questions: { chief: question('q-call') },
+    secretRequests: { chief: [request('s-call')] },
+    views: { chief: { id: 'view-1', callId: 'v-call', title: 'Card', view: { type: 'metric', label: 'Done', value: '3' } } },
+  })
+  const held = {
+    chief: {
+      [JSON.stringify(['question', 'question'])]: 1,
+      [JSON.stringify(['secret', 'request'])]: 1,
+      [JSON.stringify(['view', 'view-1'])]: 1,
+    },
+  }
+  const onlyMarks = (node) => {
+    const elements = findAll(expand(node), each => typeof each.type === 'string' && each.type !== 'fragment')
+    return elements.length > 0 && elements.every(each => each.props?.['data-bt-empty'] === true && each.props.hidden === true)
+  }
+  // A card the user is holding in the dock, an unfinished call, a name that
+  // resolves to nobody, an answerless reply: each marks itself, at any depth.
+  for (const root of [
+    call('ask_user', 'q-call'),
+    call('show_view', 'v-call'),
+    call('request_secret', 's-call', { args: { name: 'DEMO_TOKEN' } }),
+    call('browser_handoff', 'h-call'),
+    call('create_bot', 'c-call', { args: { name: 'Nobody' } }),
+    call('ask_user_question', 'aq-call', { args: { questions: [{ question: 'Ship it?' }] }, running: true }),
+    call('remember', 'm-call', { running: true }),
+  ]) {
+    assert.ok(onlyMarks(ToolCell(props(root, { roster, held }))), `${root.name} leaves only marks`)
+    effects = []
+  }
+})
+
+// #667: the slot a node's cell renders into counts as emptied only while every
+// child in it is an empty mark — a row or seat hides on that mark, so a node
+// holding anything else must not be taken for empty. `slotOf` builds the slot
+// the way the DOM would: one child per rendered part, mark or not.
+const slotOf = (out) => {
+  const slot = { childNodes: [], dataset: {} }
+  const lift = (node) => {
+    if (Array.isArray(node)) return node.forEach(lift)
+    if (node === null || node === undefined || typeof node === 'boolean') return
+    if (typeof node !== 'object') return slot.childNodes.push({ nodeType: 3, hasAttribute: () => false })
+    if (node.type === Fragment) return lift(node.props.children)
+    const dom = { nodeType: 1, hasAttribute: name => node.props?.[name] !== undefined, closest: () => slot }
+    if (node.props?.ref) node.props.ref.current = dom
+    slot.childNodes.push(dom)
+  }
+  lift(expand(out))
+  return slot
+}
+
+test('a node holding a visible event next to a mark is not emptied', () => {
+  const actions = { noteLive() {}, noteCards() {} }
+  // Marks alone: emptied, so the row or seat wrapping the slot may hide.
+  const alone = slotOf(ToolCell(props(call('ask_user', 'direct'), { actions })))
+  mount()
+  assert.equal(alone.dataset.btEmptied, '')
+
+  // A run_code node holding "Messaged Writer" and an answered question's mark:
+  // the event stays, so the node is not emptied.
+  const mixed = slotOf(ToolCell(props(program([
+    call('message_bot', 'program:ptc:1', { args: { to: 'Writer' } }),
+    call('ask_user', 'program:ptc:2'),
+  ]), { actions })))
+  mount()
+  assert.ok(mixed.childNodes.some(kid => kid.hasAttribute('data-bt-empty')), 'the answered question marks itself')
+  assert.ok(mixed.childNodes.some(kid => !kid.hasAttribute('data-bt-empty')), 'the event shows')
+  assert.ok(!('btEmptied' in mixed.dataset))
+  effects = []
+})
+
+test('a slot keeps its emptied state in step with what it holds', () => {
+  observers.length = 0
+  const slot = { childNodes: [], dataset: {} }
+  const mark = () => ({ nodeType: 1, hasAttribute: name => name === 'data-bt-empty', closest: () => slot })
+  const event = () => ({ nodeType: 1, hasAttribute: () => false, closest: () => slot })
+  const text = () => ({ nodeType: 3, hasAttribute: () => false })
+  // Mounts one CellEmpty into the slot beside `siblings`; returns its unmount.
+  const draw = (...siblings) => {
+    const self = mark()
+    CellEmpty({}).props.ref.current = self
+    slot.childNodes = [...siblings, self]
+    return mount()
+  }
+  const changed = () => observers.filter(observer => !observer.off).forEach(observer => observer.fn())
+
+  // A mark mounted beside a visible part, or beside plain text another
+  // renderer left, does not empty the slot.
+  draw(event(), mark())
+  assert.ok(!('btEmptied' in slot.dataset))
+  draw(text(), mark())
+  assert.ok(!('btEmptied' in slot.dataset))
+
+  // A mark alone empties the slot; a visible part landing later takes the mark
+  // back, and that part leaving empties the slot again.
+  const unmount = draw()
+  assert.equal(slot.dataset.btEmptied, '')
+  slot.childNodes = [...slot.childNodes, event()]
+  changed()
+  assert.ok(!('btEmptied' in slot.dataset))
+  slot.childNodes = slot.childNodes.slice(0, 1)
+  changed()
+  assert.equal(slot.dataset.btEmptied, '')
+
+  // The last mark leaving takes the emptied state with it.
+  unmount()
+  assert.ok(!('btEmptied' in slot.dataset))
   effects = []
 })
 
@@ -641,9 +757,26 @@ test('a PTC group relay shows its replies from the sub-call, live and after relo
   const headless = { ...finished, name: '', call: null }
   assert.equal(shown(headless, { sessionId: 'room' }), reloaded)
 
-  const progress = [{ callId: 'other', replies: [{ botId: 'chief', text: 'Not this round.' }] }, { callId: 'call-1-1:ptc:1', replies: replies.slice(0, 1), speaking: 'chief' }]
+  const progress = [{ callId: 'other', replies: [{ botId: 'chief', text: 'Not this round.' }] }, { callId: 'call-1-1:ptc:1', replies: replies.slice(0, 1), speaking: ['chief'] }]
   const asked = []
-  const actions = { roomProgress: async (id) => { asked.push(id); return progress } }
+  const notes = []
+  const groupRelays = createSource({})
+  const actions = {
+    roomProgress: async (id) => { asked.push(id); return progress },
+    groupRelays,
+    noteGroupRelay: (sessionId, callId, live) => {
+      notes.push([sessionId, callId, live])
+      const key = groupRelayKey(sessionId, callId)
+      groupRelays.set((state) => {
+        if (live === undefined) {
+          const next = { ...state }
+          delete next[key]
+          return next
+        }
+        return { ...state, [key]: live }
+      })
+    },
+  }
   const running = program([call('group_relay', 'call-1-1:ptc:1', { running: true })], { running: true })
   const relay = find(ToolCell(props(running, { sessionId: 'room', actions })), node => node.type?.name === 'GroupReplies')
   effects = []
@@ -651,10 +784,106 @@ test('a PTC group relay shows its replies from the sub-call, live and after relo
   relay.type(relay.props)
   const stop = mount()
   await new Promise(resolve => setImmediate(resolve))
+  const live = groupRelays.getSnapshot()[groupRelayKey('room', 'call-1-1:ptc:1')]
+  assert.deepEqual(JSON.parse(JSON.stringify(live)), { replies: replies.slice(0, 1), speaking: ['chief'], broken: false })
+  assert.deepEqual(JSON.parse(JSON.stringify(notes[0])), ['room', 'call-1-1:ptc:1', { replies: replies.slice(0, 1), speaking: ['chief'], broken: false }])
+  assert.match(text(expand(relay.type(relay.props))), /Writer.*Hello from Writer\..*Chief.*typing/)
   stop()
   timers.clear()
   assert.deepEqual(asked, ['room'])
-  assert.deepEqual(JSON.parse(JSON.stringify(sets)), [{ replies: replies.slice(0, 1), speaking: 'chief' }])
+  assert.equal(sets.length, 0, 'the live rows come from the shared source, not local state')
+  assert.deepEqual(JSON.parse(JSON.stringify(notes.at(-1).slice(0, 2))), ['room', 'call-1-1:ptc:1'])
+  assert.equal(notes.at(-1)[2], undefined)
+})
+
+test('lookup process uses a native disclosure and preserves its content', () => {
+  const replies = [{ kind: 'lookup', botId: 'writer', text: 'release notes' }, { botId: 'writer', text: 'Visible reply' }]
+  const out = show(call('group_relay', 'round', { content: { replies } }), { sessionId: 'room' })
+  const details = find(out, node => node.type === 'details' && text(node).includes('View process'))
+  assert.ok(details)
+  assert.equal(details.props.open, undefined)
+  assert.match(text(details), /View process.*release notes/)
+  assert.match(text(out), /Visible reply/)
+})
+
+test('unknown relay events remain visible with their original fields', () => {
+  const replies = [{ kind: 'new-event', botId: 'writer', text: 'Keep this' }]
+  const out = show(call('group_relay', 'round', { content: { replies } }), { sessionId: 'room' })
+  assert.match(text(out), /new-event.*Keep this/)
+  assert.ok(find(out, node => node.type === 'details' && node.props.className === 'bt-group-summary'))
+})
+
+test('call summary keeps each recorded reply in order and marks partial or failed calls', () => {
+  const replies = [{ botId: 'writer', text: 'first' }, { botId: 'writer', text: 'second' }, { kind: 'new-event', text: 'event text' }]
+  const closed = show(call('group_relay', 'round', { content: { replies } }), { sessionId: 'room' })
+  const control = find(closed, node => node.props?.className === 'bt-group-summary')
+  assert.ok(control)
+  control.props.onToggle({ currentTarget: { open: true } })
+  assert.equal(sets.pop(), true)
+  openSummary = true
+  try {
+    const out = show(call('group_relay', 'round', { content: { replies }, isError: true }), { sessionId: 'room' })
+    const summary = find(out, node => node.props?.className === 'bt-group-summary')
+    assert.match(text(summary), /first.*second.*Unknown event: new-event.*event text/)
+    assert.match(text(summary), /failed or the record is incomplete/)
+    assert.match(text(summary), /attachments.*attribution is unknown/)
+    const other = show(call('group_relay', 'other', { content: { replies: [{ name: 'Other', text: 'other call' }] } }), { sessionId: 'room' })
+    assert.doesNotMatch(text(find(other, node => node.props?.className === 'bt-group-summary')), /first|second/)
+    const cut = show(call('group_relay', 'partial', { content: '{"replies":[{"text":"kept"}[... tool result middle pruned ...]' }), { sessionId: 'room' })
+    assert.match(text(find(cut, node => node.props?.className === 'bt-group-summary')), /incomplete.*kept/)
+  } finally { openSummary = false }
+  control.props.onToggle({ currentTarget: { open: false } })
+  assert.equal(sets.pop(), false)
+  const unidentified = show(call('group_relay', undefined, { content: { replies } }), { sessionId: 'room' })
+  assert.equal(find(unidentified, node => node.props?.className === 'bt-group-summary'), undefined)
+  const empty = show(call('group_relay', 'empty', { content: { replies: [] } }), { sessionId: 'room' })
+  assert.equal(find(empty, node => node.props?.className === 'bt-group-summary'), undefined)
+  const running = show(call('group_relay', 'running', { running: true }), { sessionId: 'room' })
+  assert.equal(find(running, node => node.props?.className === 'bt-group-summary'), undefined)
+  const malformed = show(call('group_relay', 'malformed', { content: { replies: [null, { text: 'survived' }] } }), { sessionId: 'room' })
+  assert.match(text(malformed), /Some group replies are unavailable/)
+  assert.match(text(malformed), /survived/)
+})
+
+test('malformed reply text preserves the valid message and marks it unavailable', () => {
+  const replies = [{ botId: 'writer', text: 'surviving' }, { botId: 'writer', text: 42 }]
+  const out = show(call('group_relay', 'damaged', { content: { replies } }), { sessionId: 'room' })
+  assert.match(text(out), /surviving/)
+  assert.match(text(out), /Some group replies are unavailable/)
+})
+
+test('group relay never borrows another or unidentified live call', async () => {
+  for (const callId of ['wanted', undefined]) {
+    const groupRelays = createSource({})
+    const actions = {
+      roomProgress: async () => [{ replies: [{ botId: 'chief', text: 'Unidentified' }] }, { callId: 'other', replies: [{ botId: 'writer', text: 'Other round' }] }],
+      groupRelays,
+      noteGroupRelay: (sessionId, id, live) => groupRelays.set(state => ({ ...state, [groupRelayKey(sessionId, id)]: live })),
+    }
+    const running = program([call('group_relay', callId, { running: true })], { running: true })
+    const relay = find(ToolCell(props(running, { sessionId: 'room', actions })), node => node.type?.name === 'GroupReplies')
+    effects = []
+    relay.type(relay.props)
+    const stop = mount()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.doesNotMatch(text(expand(relay.type(relay.props))), /Unidentified|Other round/)
+    stop()
+    timers.clear()
+  }
+})
+
+test('an earlier group result renders its missing-replies marker', () => {
+  const out = expand(ChatRows({ items: [{ kind: 'group-replies-unavailable', time: 1 }], sessionId: 'room', roster: team(), actions: {} }))
+  const marker = find(out, node => node.props?.role === 'status')
+  assert.ok(marker)
+  assert.match(text(marker), /Some group replies are unavailable/)
+})
+
+test('a partially recovered group result marks missing replies and unknown attribution', () => {
+  const out = show(call('group_relay', 'partial', { content: '{"replies":[{"botId":"writer","text":"Survived"}[... tool result middle pruned ...]' }), { sessionId: 'room' })
+  assert.match(text(out), /Delivery attribution: unknown/)
+  assert.match(text(out), /Some group replies are unavailable/)
+  assert.match(text(out), /Survived/)
 })
 
 // #105: the secret and question cards of a PTC program showed nowhere.
@@ -693,7 +922,7 @@ test('a goal round draws nothing, while another unknown trigger keeps its event 
     useUi: select => select({ visits: {} }),
     actions: {},
   }))
-  assert.equal(trigger({ kind: 'goal', goalId: 'goal-1', revision: 1, round: 1 }), null)
+  assert.ok(emptied(trigger({ kind: 'goal', goalId: 'goal-1', revision: 1, round: 1 })))
   assert.match(text(trigger({ kind: 'webhook' })), /<goal_round>Keep going/)
 })
 
@@ -852,4 +1081,37 @@ test('a view works its formulas out, draws a chart, and keeps html in a sandboxe
   assert.match(frame.props.srcDoc, /Content-Security-Policy" content="default-src 'none'/)
   assert.ok(frame.props.srcDoc.indexOf('Content-Security-Policy') < frame.props.srcDoc.indexOf('<b>hi</b>'), 'the policy comes before the markup')
   assert.equal(frame.props.title, 'A greeting')
+})
+
+// #718: a folded message's cut code block is drawn by DS Bot, so no copy control
+// exists that holds only the part shown; DS Bot's own is bound to the whole
+// block, and a short block keeps the host's normal rendering and copy.
+test('a folded code block leaves no copy of only its shown part', async () => {
+  const inner = Array.from({ length: 40 }, (_, index) => `line ${index + 1}`).join('\n')
+  const bubble = (texts) => expand(Bubbles({
+    texts, roster: team(), selfId: chief.id, sessionId: chief.id, actions: {},
+    useUi: select => select({ reactions: {} }),
+  }))
+  const copyOf = node => findAll(node, item => item.type === 'button' && typeof item.props?.className === 'string' && item.props.className.includes('bt-fold-copy'))
+
+  markdownTexts.length = 0
+  copiedTexts.length = 0
+  const out = bubble([`Here:\n\`\`\`js\n${inner}\n\`\`\``])
+  // The markdown the host renders holds no fence, so it can draw no copy of the part.
+  assert.ok(markdownTexts.length > 0 && markdownTexts.every(given => !given.includes('```')))
+  // DS Bot draws the part the preview keeps, and its copy holds the whole block.
+  assert.equal(text(find(out, item => item.type === 'pre')), 'line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8')
+  const [copy] = copyOf(out)
+  assert.equal(copyOf(out).length, 1)
+  copy.props.onClick()
+  await Promise.resolve()
+  assert.deepEqual(copiedTexts, [inner])
+
+  // A short block goes to the host whole, with the host's own copy and none of ours.
+  markdownTexts.length = 0
+  copiedTexts.length = 0
+  const short = bubble(['```js\none\n```'])
+  assert.ok(markdownTexts.some(given => given.includes('```js')))
+  assert.equal(copyOf(short).length, 0)
+  effects = []
 })

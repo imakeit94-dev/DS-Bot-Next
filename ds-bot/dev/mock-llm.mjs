@@ -232,6 +232,7 @@ function decide(body) {
       return Object.assign([text(STEP_LINES[at - 1]), tool(used.name, { pattern: `${STEPPED_WORK}-${at + 1}-${stepped[2]}-*` })], { delay: wait })
     }
     switch (used?.name) {
+      case 'present': return [text(result.is_error ? '交付失败。' : '交付完成。')]
       case 'group_relay': return [text('')]
       case 'create_bot': {
         const name = used.input.name
@@ -359,6 +360,7 @@ function decide(body) {
     if (/报.{0,3}数|count off/i.test(userLine)) return [text(String((said.length ? Math.max(...said) : 0) + 1))]
     if (/^User: 撑爆/.test(userLine)) return 'overflow'
     if ((ask = /^User: 报错(?:\s+(\S+))?/.exec(userLine)) && (!ask[1] || ask[1] === me)) return 'auth'
+    if ((ask = /^User: 测试交付\s+(.+)$/.exec(userLine)) && leads && tools.has('present')) return [tool('present', { files: [{ path: ask[1] }] })]
     // Context-line tests in a group Session: grow it, or check what is still in it.
     if ((ask = /长文\s*(\d+)/.exec(userLine))) return [text(filler(Number(ask[1]) * 1000, `${me}群长文`))]
     if ((ask = /上下文里有\s*(\S+)/.exec(userLine))) {
@@ -478,6 +480,8 @@ function decide(body) {
   if ((match = /让\s*([^\s，,。]+?)\s*在(?:它|他|她)?自己的(?:对话框|窗口)/.exec(userText)) && tools.has('message_bot')) {
     return [text(`好，我让 ${match[1]} 在它自己的对话框里跟你说。`), tool('message_bot', { to: match[1], message: '用户想直接听你说说打算。', reply_to: 'user' })]
   }
+  const deliverable = /^测试交付\s+(.+)$/.exec(userText.trim())
+  if (deliverable && tools.has('present')) return [tool('present', { files: [{ path: deliverable[1] }] })]
   if (/^\s*多选/.test(userText)) {
     return [tool('ask_user', {
       question: '这周先盯哪些？', detail: '可以选几项。', multiSelect: true,

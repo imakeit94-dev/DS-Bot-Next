@@ -1,146 +1,37 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.svg">
-    <img src="docs/images/logo.svg" alt="DS Bot" width="260">
-  </picture>
-</p>
+# DS Bot Next
 
-# DS Bot
+DS Bot Next is an independently maintained fork of [DS Bot](https://github.com/Fei2411/DS-Bot), a team of persistent Bots and group chats for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH). The original project was created by Fei2411 and contributors and is licensed under Apache License 2.0.
 
 English | [中文](README.zh.md)
 
-![version](https://img.shields.io/badge/version-v0.2_preview-blue) ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.4-4D6BFE) ![license](https://img.shields.io/badge/license-Apache_2.0-green)
+## What Next adds
 
-DS Bot is a bot plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH). It turns DSH into bots. You create your own bots, then talk and work with them.
+- **Workgroups:** organize Bots and group chats, collapse or pin groups, drag to reorder them, and move entries in batches.
+- **Needs your attention:** find approvals, questions, and failed runs and open the relevant conversation. Failures stay until you clear them.
+- **Deliverables:** browse explicitly presented files by workgroup and open the source conversation. The list does not read file contents.
+- **Parallel group calls:** members named together can start concurrently. Ordinary messages in everyone mode still go in order. Group relays follow the 0.2.5 protocol: there is no relay-limit setting and no Continue button; after six consecutive repetitive or acknowledgement-only turns without a tool call, the next call is parked until you write.
+- **Selected upstream fixes:** data protection, message reliability, and interface fixes. See the [upstream review](docs/upstream-fix-review-0.2.6.md) for coverage and remaining differences.
 
-![Say one sentence to Chief, and it sets up the bots and the group chat](docs/images/team.png)
+Parallel members may see the same prior conversation state; arrange tasks in steps when strict ordering matters.
 
-## Install
+See the [0.2.7 release notes](docs/release-0.2.7.md) for what changed in this version.
 
-**Desktop app (Windows, macOS, Linux)**
+## Install the plugin
 
-The desktop app brings its own DSH, so you don't need to install DSH first. Download it from [Releases](https://github.com/Fei2411/DS-Bot/releases):
+The current download is a **DSH plugin package**, not a standalone Windows `.exe`. Install DeepSeek Harness Desktop and configure a model first. Version 0.2.6 has been used with DSH Desktop 0.2.1-rc.5 on macOS; **it has not yet been tested on a Windows machine**.
 
-- Windows (x64): `DeepSeek-Bot-<version>-win-x64.exe`. Run it; it installs for your user only, without administrator rights. If Windows shows "Windows protected your PC", select **More info** → **Run anyway**.
-- macOS: `DeepSeek-Bot-<version>-mac-arm64.zip` for an Apple chip, `DeepSeek-Bot-<version>-mac-x64.zip` for Intel. Safari unzips it by itself; drag **DeepSeek Bot** into **Applications** and open it. When macOS says it cannot check the app, open **System Settings** → **Privacy & Security** and select **Open Anyway**.
-- Linux (x64): `DeepSeek-Bot-<version>-linux-x86_64.AppImage` runs on every distribution — make it executable and open it. It mounts through FUSE 2, which you may need to install first (`sudo apt install libfuse2t64` on Ubuntu 24.04+, `sudo dnf install fuse-libs` on Fedora, `sudo pacman -S fuse2` on Arch). On Ubuntu 24.04 and later an AppImage can refuse to start (Ubuntu restricts the sandbox it needs); the `DeepSeek-Bot-<version>-linux-amd64.deb` on Debian/Ubuntu does not have this problem and adds a menu entry.
+1. Download `ds-bot-next-0.2.6.tgz` from this repository's [Releases](https://github.com/imakeit94-dev/DS-Bot-Next/releases).
+2. In DSH Desktop, choose **Plugins → Add plugin → Install third-party plugin**, and enter the downloaded file's full path, for example `C:\Downloads\ds-bot-next-0.2.6.tgz`.
+3. Select **Install** and enable `ds-bot-next`. If the interface still shows the old version, quit DSH completely and reopen it.
 
-At the first start the app asks where to keep its data and the Bots' files, and offers to copy a Bot team from your DSH (it only reads your DSH). Set up a model in its settings. The Windows app and the Linux AppImage update themselves; the macOS app and the Linux deb tell you when a new version is ready to download.
+Next and original DS Bot use the same Bot service and data location: **do not enable both at once**. Disable the original plugin first if it is enabled. Back up your DSH data before changing versions; chats, model settings, and other data do not automatically sync between computers.
 
-**Desktop app from source (Windows)**
+This fork does not provide automatic updates or a standalone Windows installer. Report issues in [this repository](https://github.com/imakeit94-dev/DS-Bot-Next/issues); review and remove private information from descriptions and diagnostics before submitting them publicly.
 
-With Node.js 22.19 or later and npm installed, run `.\start.ps1` in PowerShell from this checkout. It prepares and launches the current source, keeping your Bots, chats and model settings in `.ds-bot-local/` between runs. See [source startup](app/README.md#run-from-source-windows).
+## Development and tests
 
-**As a plugin in DSH**
+The `main` branch keeps the upstream baseline; the maintained Next source is on the [Next branch](https://github.com/imakeit94-dev/DS-Bot-Next/tree/codex/ds-bot-next), in `ds-bot/`. See [AGENTS.md](AGENTS.md) and the [Next development notes](docs/next-development.md) for dependencies, builds, and mock testing. Tests use isolated directories and a mock model, not the user's DSH data. The source checkout retains the upstream package name for maintenance; the distributed package uses the separate `ds-bot-next` identity.
 
-First install DSH and set up at least one model in it. DS Bot uses the models from DSH.
+To create a local Next archive after installing the build dependencies, run `node scripts/package-next.mjs` in `ds-bot/`. It writes to the ignored `artifacts-local/` directory and checks the plugin identity before packing. Packaging on Windows has not been tested.
 
-**DSH Desktop (Windows, macOS)**
-
-1. In the sidebar, select **Plugins** → **Add plugin**.
-2. In **Package name or address**, enter `ds-bot`. In mainland China, set **Registry** to **Mainland China mirror**.
-3. Select **Install**, then **Enable now**. If DSH says the change takes effect at the next start, quit DSH completely and open it again.
-
-If npm is not reachable, in step 2 you can also enter the full path of `ds-bot-0.2.1.tgz` downloaded from [Releases](https://github.com/Fei2411/DS-Bot/releases), or `github:Fei2411/DS-Bot#v0.2.1&path:/ds-bot` (needs Git).
-
-DS Bot 0.2.1 and earlier cannot update themselves in DSH Desktop 0.2.1-rc.2 or later: on the Plugins page, remove `ds-bot` and add `ds-bot` again. The Bots, chats and memory stay.
-
-**DSH Web (Windows, macOS, Linux)**
-
-Needs Node.js `22.19` or later, and pnpm.
-
-```sh
-npx @deepseek-ai/dsh@0.2.1-rc.4 plugin --profile web add ds-bot
-npx @deepseek-ai/dsh@0.2.1-rc.4 web
-```
-
-**Docker (NAS, Linux server)**
-
-The [`docker/`](docker/) directory builds an image with DSH Web and DS Bot, for a NAS or any always-on machine. CI is configured to publish a prebuilt linux/amd64 image to GHCR. The container is the Bots' sandbox: they get full access to what you mount into it, and nothing else. See [`docker/README.md`](docker/README.md).
-
-## Setup
-
-I strongly recommend that you set up your other bots and group chats by just talking to a bot.
-
-### Web search
-
-DS Bot selects its `auto` search provider for the whole profile. If you disable `web-search-auto`, also select another registered search provider in that profile. See [Web search](ds-bot/README.md#web-search) and the [recovery steps](docs/known-issues.md#web-search-fails-everywhere-after-turning-off-web-search-auto).
-
-## Features
-
-### Bot
-
-You can do all your talking and work with one bot, in one window. You don't need to worry about the context behind it. The bot's details page shows its info, and there you can pick the model you want it to use. You can switch models at any time, but I still recommend that you keep one model for a bot for a long time, and switch only when you really need to.
-
-Bots also have memory. A bot remembers what you like and uses it in later work. You can manage its memory on the bot's details page, or just tell the bot.
-
-![Bot details: model, memory, usage](docs/images/details.png)
-
-### Main bot
-
-The main bot is your chief. It has very high rights: it manages the other bots and the group chats. The first time you open DS Bot, there is already a main bot called Chief. Talk to it, and it walks you through the setup.
-
-In short: have a question? Ask the main bot.
-
-### Group chats
-
-DS Bot has group chats. A group chat is a great way to get several bots to work together, but it clearly costs more. So DS Bot does this: every group chat has an admin. The admin answers your messages by default and calls in the other bots for you. You can also @ a bot directly, and it answers you directly: type @ and pick the bot from the list. To give the bots another chat as context, use + → Reference a chat in the message box.
-
-Any bot can hand work to another bot with @. That bot does the work on its own, and the group goes on. While it works, it keeps the group posted, and the group, the sidebar and its own chat show what it is doing. When it is done, it posts the result in the group, and the bot that asked for the work answers. To stop the work, open the group's details.
-
-A group chat has its own memory. What you tell the group stays in the group: its members use it there, and your other chats and the bots outside the group do not see it. You can manage it in the group's details.
-
-![Group chat: the admin, Chief, hands the work to Writer and Coder](docs/images/group.png)
-
-### Needs your attention
-
-The sidebar gathers pending approvals, questions and failed Bot runs. Select an item to open its conversation. Approvals and questions disappear when answered. A failed run remains until you choose **Mark as handled**; opening the conversation does not clear it.
-
-### Sidebar groups
-
-Organize Bots and group chats into named sidebar groups. Select **New sidebar group**, then right-click a Bot or group chat and choose where to move it. Drag a group by its handle to reorder it within its pinned or unpinned tier. Each group's menu lets you rename, pin, reorder or delete it; select its name to collapse or expand it. Deleting a sidebar group moves its chats to Ungrouped; it does not delete them or change group-chat membership.
-
-### Capabilities
-
-Settings → **Capabilities** is a shared library of MCP servers, skills and packs. Add a capability to a Bot in its settings; it is available from that Bot's next message in its own chat and group chats. A local MCP command that a Bot adds needs your approval before it can run. While other Bots use a capability, only you or a Main Bot can change or delete it.
-
-### Usage
-
-In **Settings** → **Usage**, you can see token usage by time, by bot and by model.
-
-![Usage page](docs/images/usage.png)
-
-### Office files
-
-Bots work with Office documents. They can create and edit .docx, .pptx and .xlsx, read a document's structure with stable ids, check a package for the defects Office would refuse, make targeted edits (comments, tracked changes, fields, table cells), reorder or duplicate slides, list workbook errors, and review rendered pages on a contact sheet. The desktop app includes everything needed; in DSH Desktop Bots use DSH's Office runtime plus DS Bot's commands; in DSH Web the inspect, check and edit commands work, while creating files from scratch and rendering pages need the desktop app or DSH Desktop.
-
-## Data
-
-All data stays on your own computer, in `bot/` and `sessions/` in the DSH home folder (`~/.dsh` by default). Uninstalling the plugin does not delete this data.
-
-## Development
-
-The plugin source is in [`ds-bot/`](ds-bot/). For options and internals, see [`ds-bot/README.md`](ds-bot/README.md). For development, tests and how the team works, see [CONTRIBUTING.md](CONTRIBUTING.md). For changes between versions, see [CHANGELOG.md](CHANGELOG.md).
-
-## Acknowledgments
-
-- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness): DS Bot is built on the DSH plugin system. Every bot works in DSH sessions and uses the DSH tools and models.
-- [esbuild](https://esbuild.github.io/): bundles the plugin's interface code.
-- Thanks to these projects for the ideas they published. DS Bot learned from their designs and does not contain their code:
-  - [AgentMemoryRepo](https://github.com/AgentMemoryRepo/agentmemoryrepo): the Markdown format of Bot memory.
-  - [OpenAI Codex](https://github.com/openai/codex): checkpoints that keep the user's messages next to the summary, and message anchors for chat search.
-  - [OpenMausBot](https://github.com/milind-soni/OpenMausBot): group chat rounds and @mention relays.
-  - [Hermes Agent](https://github.com/NousResearch/hermes-agent) and [Hermes Bot Mode](https://github.com/NousResearch/Hermes-Bot-Mode): one session per member per group chat, and handoffs that carry the earlier user messages.
-  - [OpenCode](https://github.com/sst/opencode), [goose](https://github.com/block/goose), [pi](https://github.com/badlogic/pi-mono) and [Gemini CLI](https://github.com/google-gemini/gemini-cli): when to condense a long chat, and what a handoff note holds.
-  - [obelisk](https://github.com/tommy0103/obelisk): chat search with a SQLite full-text index.
-- Everyone who tries DS Bot, asks questions and reports bugs.
-
-## License
-
-[Apache License 2.0](LICENSE). Provided "as is", without any warranty. Third-party code and its license are listed in [NOTICE](NOTICE).
-
-## Disclaimer
-
-DS Bot is an independent community project. **It is not an official DeepSeek product**, and it is not affiliated with, endorsed by or sponsored by DeepSeek. "DeepSeek", "DeepSeek Harness" and the other names are trademarks of their owners. They are used here only to say what this plugin works with.
-
-Bots use your own model quota, and they read and write files and run commands when you ask them to. Check important actions yourself.
+DS Bot Next is a personal fork; the upstream maintainers decide whether to adopt any contribution. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for origin, copyright, and license information.

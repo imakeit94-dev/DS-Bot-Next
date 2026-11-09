@@ -8,6 +8,7 @@ import { test } from 'node:test'
 import { format } from 'node:util'
 import { createRuntime } from '../index.js'
 import { fakeContext } from './fake-ctx.js'
+import { recordAttentionFailure } from '../src/host/attention-failures.js'
 
 // Enough of the dsh services for the roster to make Sessions; kickoff messages are dropped.
 let rt
@@ -81,6 +82,41 @@ const until = async (check) => {
     await settle()
   }
 }
+
+test('failure acknowledgement through the channel persists after restart', async () => {
+  const first = start()
+  await first.call('state', {})
+  const main = rt.state.mainBotIds[0]
+  assert.ok(main)
+  recordAttentionFailure(rt.state, main)
+  const id = rt.state.attentionFailures[0].id
+  await rt.save({ required: true })
+  assert.equal((await first.call('state', {})).value.attentionFailures.length, 1)
+  assert.equal((await first.call('attention-failure-clear', { id })).ok, true)
+  assert.deepEqual((await first.call('state', {})).value.attentionFailures, [])
+  const persisted = JSON.parse(readFileSync(join(first.home, 'state.json'), 'utf8'))
+  await first.stop()
+  const restarted = start(persisted)
+  try { assert.deepEqual((await restarted.call('state', {})).value.attentionFailures, []) } finally { await restarted.stop() }
+})
+
+test('failure acknowledgement returns an error and stays retryable when the channel cannot save', async () => {
+  const fixture = start()
+  try {
+    await fixture.call('state', {})
+    recordAttentionFailure(rt.state, rt.state.mainBotIds[0])
+    const id = rt.state.attentionFailures[0].id
+    await rt.save({ required: true })
+    const save = rt.save
+    rt.save = async options => { assert.equal(options.required, true); throw new Error('synthetic read only') }
+    const failed = await fixture.call('attention-failure-clear', { id })
+    assert.equal(failed.ok, false)
+    assert.deepEqual((await fixture.call('state', {})).value.attentionFailures.map(item => item.id), [id])
+    rt.save = save
+    assert.equal((await fixture.call('attention-failure-clear', { id })).ok, true)
+    assert.deepEqual((await fixture.call('state', {})).value.attentionFailures, [])
+  } finally { await fixture.stop() }
+})
 
 test('the first Main Bot waits for the user to pick a model, then greets', async (t) => {
   const { call, stop, sent, selected } = start(undefined, { models: ['deepseek-v4-flash', 'deepseek-v4-pro'] })
@@ -967,7 +1003,8 @@ test('a photo that cannot be read changes nothing, and a non-Main Bot cannot set
   assert.equal((await call('state', {})).value.bots.find(bot => bot.id === writer.id).avatar.image, PNG_DATA_URL)
 })
 
-test('a group\'s relay limit is a user setting the state view shows, and old late-round fields load away', async (t) => {
+test('old late-round and relay-limit fields of a group load away; calls it parked stay for the next round', async (t) => {
+  const parked = [{ id: 'writer', name: 'Writer', note: 'Chief mentioned you', by: 'chief' }]
   const { call, stop, home } = start({
     version: 1,
     mainBotIds: ['chief'],
@@ -975,33 +1012,19 @@ test('a group\'s relay limit is a user setting the state view shows, and old lat
     rooms: {
       r1: {
         id: 'r1', name: 'Ops', members: ['chief', 'writer'], mode: 'admin', admin: 'chief', named: true,
-        log: [], seq: 0, seen: {}, lateRounds: 7, quietNoticed: true, quietShown: true,
+        log: [], seq: 0, seen: {}, lateRounds: 7, quietNoticed: true, quietShown: true, relays: 5, relayLimit: 4, paused: parked,
       },
     },
   })
   t.after(stop)
   const shown = (await call('state', {})).value.rooms.find(room => room.id === 'r1')
-  // The released late-round fields load away, and the live relay count never shows.
-  assert.equal('lateRounds' in shown, false)
-  assert.equal('quietNoticed' in shown, false)
-  assert.equal('quietShown' in shown, false)
-  assert.equal('relays' in shown, false)
-  assert.equal(shown.relayLimit, undefined)
-  assert.equal(shown.relayLimitDefault, 6, 'the default is three relays per member')
-  assert.equal('lateRounds' in JSON.parse(readFileSync(join(home, 'state.json'), 'utf8')).rooms.r1, false)
+  for (const key of ['lateRounds', 'quietNoticed', 'quietShown', 'relays', 'relayLimit', 'relayLimitDefault', 'paused']) assert.equal(key in shown, false, key)
+  const saved = JSON.parse(readFileSync(join(home, 'state.json'), 'utf8')).rooms.r1
+  for (const key of ['lateRounds', 'relays', 'relayLimit']) assert.equal(key in saved, false, key)
+  assert.deepEqual(saved.paused, parked)
 
+  // A limit sent by an older client changes nothing.
   const set = await call('update-room', { id: 'r1', relayLimit: 4 })
   assert.equal(set.ok, true)
-  assert.equal(set.value.room.relayLimit, 4)
-  assert.match(set.value.changes.join(' '), /Bots now pause after 4 relays/)
-  const cleared = await call('update-room', { id: 'r1', relayLimit: null })
-  assert.equal(cleared.ok, true)
-  assert.match(cleared.value.changes.join(' '), /Bots pause at the default relay count again/)
-  assert.equal((await call('state', {})).value.rooms.find(room => room.id === 'r1').relayLimit, undefined)
-
-  for (const bad of [0, 2.5, 201, 'six']) {
-    const result = await call('update-room', { id: 'r1', relayLimit: bad })
-    assert.equal(result.ok, false, JSON.stringify(bad))
-    assert.match(result.error.message, /Relay limit must be a whole number from 1 to 200/)
-  }
+  assert.deepEqual(set.value.changes, [])
 })

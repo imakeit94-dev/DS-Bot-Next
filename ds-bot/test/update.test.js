@@ -81,7 +81,7 @@ test('a registry install finds the newest version on the next registry and insta
   assert.equal(view.latest, '9.0.0')
   assert.equal(view.current, PKG.version)
   assert.equal(view.source, 'registry')
-  assert.equal(view.notesUrl, 'https://github.com/Fei2411/DS-Bot/releases')
+  assert.equal(view.notesUrl, 'https://github.com/imakeit94-dev/DS-Bot-Next/releases')
   assert.equal(rt.updateStart().phase, 'installing')
   await flush()
   assert.deepEqual(installs, [[`${PKG.name}@9.0.0`, { registry: 'https://registry.npmmirror.com/' }]])
@@ -121,9 +121,9 @@ test('a versioned GitHub install follows the latest release tag and keeps its pa
 
 test('a versioned GitHub install follows the release to the repository\'s current address', async () => {
   const { rt, installs } = start({
-    source: 'github:old-owner/DeepSeek-Bot#v0.1.0&path:/ds-bot',
+    source: 'github:old-owner/retired-dsbot#v0.1.0&path:/ds-bot',
     answers: {
-      'https://api.github.com/repos/old-owner/DeepSeek-Bot/releases/latest': {
+      'https://api.github.com/repos/old-owner/retired-dsbot/releases/latest': {
         tag_name: 'v9.1.0',
         html_url: 'https://github.com/Fei2411/DS-Bot/releases/tag/v9.1.0',
       },
@@ -162,10 +162,10 @@ test('in the desktop app, which updates as a whole, it never asks the network an
 })
 
 test('the star count comes from the repository, is kept for an hour, and survives a failed answer', async () => {
-  const repo = 'https://api.github.com/repos/Fei2411/DS-Bot'
+  const repo = 'https://api.github.com/repos/imakeit94-dev/DS-Bot-Next'
   const answers = { [repo]: new Error('offline') }
   const { rt, fetched } = start({ source: `${PKG.name}@^${PKG.version}`, answers })
-  assert.equal(rt.updateView().repoUrl, 'https://github.com/Fei2411/DS-Bot')
+  assert.equal(rt.updateView().repoUrl, 'https://github.com/imakeit94-dev/DS-Bot-Next')
   assert.equal(await rt.repoStars(), null)
   answers[repo] = { stargazers_count: 42 }
   assert.equal(await rt.repoStars(), 42)
