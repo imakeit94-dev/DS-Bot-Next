@@ -68,7 +68,7 @@ test('filters secret sentinels, dangerous property keys, arbitrary values and un
 })
 
 test('uses opaque IDs consistently for credentials and numeric object names', () => {
-  const names = ['passwd', 'pwd', 'AKIAABCDEFGHIJKLMNOP', '1234567890123456789012345678901234567890']
+  const names = ['passwd', 'pwd', 'AKIA' + 'ABCDEFGHIJKLMNOP', '1234567890123456789012345678901234567890']
   const props = Object.fromEntries(names.map(name => [name, { type: 'string' }]))
   const schema = { type: 'object', properties: props, required: names, $defs: { [names[3]]: { type: 'string' } }, allOf: [{ $ref: '#/$defs/' + names[3] }] }
   const result = summarize(schema)

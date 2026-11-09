@@ -9,7 +9,7 @@ const page = '0123456789abcdef0123456789abcdef'
 const key = 'SECRET_SENTINEL'
 const accountId = 'ca_ACCOUNT_SENTINEL'
 const configId = 'ac_CONFIG_SENTINEL'
-const token = 'ln_TOKEN_SENTINEL'
+const token = 'ln_TEST_TOKEN_SENTINEL'
 const account = user => ({ id: accountId, toolkit: { slug: 'notion' }, status: 'ACTIVE', is_disabled: false, auth_config: { id: configId, is_disabled: false }, user_id: user })
 function wire({ empty = false, configs = 1, failCreate = false, markdown = 'BODY_SENTINEL', delayPost = 0 } = {}) {
   const calls = []

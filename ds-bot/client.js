@@ -1116,7 +1116,7 @@ var ZH = {
   "Installed from a local folder; update it there.": "从本地文件夹安装，请在那里更新。",
   "Updates are not offered for this install.": "这种安装方式不提供更新。",
   "Updates come with the DS Bot app.": "随 DS Bot 应用一起更新。",
-  "Updates come with the DeepSeek Bot app.": "随 DeepSeek Bot 应用一起更新。",
+  "Updates come with the DS Bot Next app.": "随 DS Bot Next 应用一起更新。",
   Links: "链接",
   "Source code": "源代码",
   "Release notes": "发布说明",
@@ -17667,7 +17667,7 @@ function botHint(update) {
   if (update.phase === "updated") return t("DS Bot Next {version} is installed.", { version: update.installed ?? update.latest });
   if (update.phase === "failed") return t("The update did not finish: {reason}", { reason: hostText(update.error ?? "") });
   if (update.available) return t("DS Bot Next {version} is available", { version: update.latest });
-  if (update.source === "app") return t("Updates come with the DeepSeek Bot app.");
+  if (update.source === "app") return t("Updates come with the DS Bot Next app.");
   if (update.enabled === false) return t("Update checks are off.");
   if (update.source === "path") return t("Installed from a local folder; update it there.");
   if (!update.checkedAt) return null;
